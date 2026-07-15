@@ -1,0 +1,61 @@
+# 武渭星 · 个人简历网站
+
+> AI增强型运维工程师 · 3年政企项目实施经验 · 北京求职
+
+## 技术栈
+
+- **前端**：原生 HTML + CSS + JavaScript（单页响应式）
+- **部署**：GitHub Pages + Cloudflare CDN
+- **后端**（规划中）：阿里云 ECS + FastAPI + Ollama（AI助手）
+
+## 本地预览
+
+直接用浏览器打开 `index.html` 即可。
+
+## 部署步骤
+
+### 1. 推送到 GitHub
+
+```bash
+git init
+git add .
+git commit -m "init: 个人简历网站"
+git branch -M main
+git remote add origin https://github.com/你的用户名/resume.git
+git push -u origin main
+```
+
+### 2. 开启 GitHub Pages
+
+仓库 → Settings → Pages → 选择 `main` 分支 `/root` 目录 → Save
+
+访问 `https://你的用户名.github.io/resume`
+
+### 3. 绑定自定义域名（可选）
+
+- 购买域名（Namesilo / 阿里云万网）
+- 注册 Cloudflare，修改 NS 记录
+- 添加 DNS 记录指向 GitHub Pages
+- 仓库 Settings → Pages → Custom domain
+
+### 4. 部署后端（可选，后期）
+
+购买阿里云 ECS → 部署 FastAPI + Ollama → 开启 AI 助手对话功能
+
+## 网站结构
+
+```
+resume-website/
+├── index.html     # 主页面
+├── README.md      # 本文件
+└── assets/        # 资源（可选）
+    └── resume.pdf # 可下载的PDF简历
+```
+
+## 自定义修改
+
+打开 `index.html`，修改以下内容为你自己的信息：
+
+- `第27行附近`：GitHub 链接
+- `联系方式区域`：电话、邮箱、微信
+- `个人照片`：头像（可替换 hero-avatar 区域的文字为头像图片）

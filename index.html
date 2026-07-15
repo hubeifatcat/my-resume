@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>武渭星 · 实施运维工程师</title>
+    <meta name="description" content="武渭星 - AI增强型运维工程师，3年政企项目实施经验，北京求职" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <style>
+        /* ===== Reset & Variables ===== */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #f8f9fc;
+            --surface: #ffffff;
+            --surface2: #f1f3f8;
+            --primary: #2563eb;
+            --primary-light: #3b82f6;
+            --primary-dark: #1d4ed8;
+            --text: #1e293b;
+            --text2: #475569;
+            --text3: #94a3b8;
+            --border: #e2e8f0;
+            --radius: 12px;
+            --radius-sm: 8px;
+            --shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+            --shadow-lg: 0 10px 25px rgba(0,0,0,.08);
+            --transition: .25s cubic-bezier(.4,0,.2,1);
+            --font: 'Inter', 'Noto Sans SC', -apple-system, system-ui, sans-serif;
+            --max-w: 1100px;
+            --accent-green: #059669;
+            --accent-orange: #ea580c;
+            --accent-purple: #7c3aed;
+        }
+        html { scroll-behavior: smooth; scroll-padding-top: 80px; }
+        body {
+            font-family: var(--font);
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            -webkit-font-smoothing: antialiased;
+        }
+        a { color: var(--primary); text-decoration: none; transition: var(--transition); }
+        a:hover { color: var(--primary-dark); }
+        img { max-width: 100%; display: block; }
+        .container { max-width: var(--max-w); margin: 0 auto; padding: 0 24px; }
+
+        /* ===== Nav ===== */
+        nav {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+            background: rgba(255,255,255,.85); backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            height: 64px; display: flex; align-items: center;
+        }
+        nav .container { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+        .nav-logo { font-weight: 700; font-size: 1.1rem; color: var(--text); }
+        .nav-logo span { color: var(--primary); }
+        .nav-links { display: flex; gap: 28px; list-style: none; }
+        .nav-links a { color: var(--text2); font-size: .9rem; font-weight: 500; }
+        .nav-links a:hover { color: var(--primary); }
+        .nav-actions { display: flex; gap: 12px; align-items: center; }
+        .nav-toggle { display: none; flex-direction: column; gap: 5px; cursor: pointer; background: none; border: none; padding: 4px; }
+        .nav-toggle span { display: block; width: 24px; height: 2px; background: var(--text); border-radius: 2px; transition: var(--transition); }
+
+        /* ===== Buttons ===== */
+        .btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 10px 22px; border-radius: var(--radius-sm);
+            font-size: .9rem; font-weight: 600; cursor: pointer;
+            border: none; transition: var(--transition);
+            font-family: var(--font);
+        }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); box-shadow: var(--shadow-lg); }
+        .btn-outline { background: transparent; color: var(--text); border: 1.5px solid var(--border); }
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+        .btn-sm { padding: 7px 16px; font-size: .8rem; }
+
+        /* ===== Hero ===== */
+        .hero {
+            padding: 140px 0 80px; min-height: 100vh;
+            display: flex; align-items: center;
+            background: linear-gradient(165deg, #f8f9fc 0%, #eef2ff 50%, #e0e7ff 100%);
+        }
+        .hero .container { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
+        .hero-content h1 { font-size: 3rem; font-weight: 700; line-height: 1.2; margin-bottom: 8px; }
+        .hero-content h1 span { color: var(--primary); }
+        .hero-subtitle { font-size: 1.2rem; color: var(--text2); margin-bottom: 6px; font-weight: 500; }
+        .hero-location { font-size: .95rem; color: var(--text3); margin-bottom: 24px; }
+        .hero-location svg { vertical-align: middle; margin-right: 4px; }
+        .hero-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 28px; }
+        .tag {
+            padding: 4px 14px; border-radius: 20px; font-size: .8rem; font-weight: 500;
+            background: rgba(37,99,235,.1); color: var(--primary);
+        }
+        .tag.green { background: rgba(5,150,105,.1); color: var(--accent-green); }
+        .tag.orange { background: rgba(234,88,12,.1); color: var(--accent-orange); }
+        .tag.purple { background: rgba(124,58,237,.1); color: var(--accent-purple); }
+        .hero-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+        .hero-avatar {
+            width: 100%; max-width: 380px; margin: 0 auto;
+            aspect-ratio: 1; border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; font-size: 6rem; font-weight: 700;
+            box-shadow: var(--shadow-lg);
+            position: relative;
+        }
+        .hero-avatar::after {
+            content: ''; position: absolute; inset: -8px;
+            border-radius: 50%; border: 2px solid var(--border);
+        }
+        .hero-status {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 6px 16px; border-radius: 20px; font-size: .85rem; font-weight: 500;
+            background: rgba(5,150,105,.1); color: var(--accent-green);
+            margin-bottom: 20px;
+        }
+        .hero-status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-green); animation: pulse 2s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+        /* ===== Section ===== */
+        section { padding: 80px 0; }
+        .section-header { text-align: center; margin-bottom: 52px; }
+        .section-header h2 { font-size: 2rem; font-weight: 700; margin-bottom: 10px; }
+        .section-header p { color: var(--text3); font-size: 1rem; max-width: 560px; margin: 0 auto; }
+        .section-header .line { width: 48px; height: 3px; background: var(--primary); border-radius: 2px; margin: 16px auto 0; }
+
+        /* ===== Advantages ===== */
+        .advantages-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .adv-card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 28px; transition: var(--transition);
+        }
+        .adv-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+        .adv-card .icon { font-size: 1.8rem; margin-bottom: 12px; }
+        .adv-card h3 { font-size: 1.05rem; margin-bottom: 8px; }
+        .adv-card p { font-size: .9rem; color: var(--text2); line-height: 1.7; }
+
+        /* ===== Timeline ===== */
+        .timeline { position: relative; padding-left: 32px; }
+        .timeline::before {
+            content: ''; position: absolute; left: 7px; top: 8px; bottom: 8px;
+            width: 2px; background: var(--border);
+        }
+        .timeline-item { position: relative; margin-bottom: 36px; }
+        .timeline-item:last-child { margin-bottom: 0; }
+        .timeline-item::before {
+            content: ''; position: absolute; left: -25px; top: 8px;
+            width: 14px; height: 14px; border-radius: 50%;
+            background: var(--primary); border: 3px solid var(--bg);
+        }
+        .timeline-period {
+            display: inline-block; padding: 2px 12px; border-radius: 12px;
+            font-size: .8rem; font-weight: 600; color: var(--primary);
+            background: rgba(37,99,235,.1); margin-bottom: 6px;
+        }
+        .timeline-item h3 { font-size: 1.05rem; }
+        .timeline-item h4 { font-size: .9rem; color: var(--text2); font-weight: 500; margin-bottom: 8px; }
+        .timeline-item ul { padding-left: 20px; }
+        .timeline-item li { font-size: .88rem; color: var(--text2); margin-bottom: 4px; }
+
+        /* ===== Projects ===== */
+        .projects-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 24px; }
+        .project-card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 28px; transition: var(--transition);
+        }
+        .project-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+        .project-card .role { font-size: .8rem; color: var(--primary); font-weight: 600; margin-bottom: 4px; }
+        .project-card h3 { font-size: 1.05rem; margin-bottom: 4px; }
+        .project-card .period { font-size: .8rem; color: var(--text3); margin-bottom: 12px; }
+        .project-card p { font-size: .88rem; color: var(--text2); margin-bottom: 12px; line-height: 1.7; }
+        .project-card .tech-stack { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+        .project-card .tech-stack span {
+            padding: 2px 10px; border-radius: 12px; font-size: .75rem;
+            background: var(--surface2); color: var(--text2);
+        }
+        .project-card .highlights { padding-left: 18px; }
+        .project-card .highlights li { font-size: .85rem; color: var(--text2); margin-bottom: 4px; }
+        .project-card .result {
+            margin-top: 12px; padding: 12px 16px; border-radius: var(--radius-sm);
+            background: rgba(5,150,105,.06); border-left: 3px solid var(--accent-green);
+            font-size: .85rem; color: var(--accent-green);
+        }
+
+        /* ===== Skills ===== */
+        .skills-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 28px; }
+        .skill-group h3 { font-size: 1rem; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+        .skill-items { display: flex; flex-wrap: wrap; gap: 8px; }
+        .skill-item {
+            padding: 6px 16px; border-radius: 20px; font-size: .8rem; font-weight: 500;
+            background: var(--surface2); color: var(--text2); border: 1px solid var(--border);
+            transition: var(--transition); cursor: default;
+        }
+        .skill-item:hover { border-color: var(--primary); color: var(--primary); }
+        .skill-item.highlight { background: rgba(37,99,235,.1); border-color: var(--primary); color: var(--primary); }
+
+        /* ===== AI Highlight ===== */
+        .ai-highlight {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border-radius: var(--radius); padding: 48px; color: #fff;
+            margin-top: 60px;
+        }
+        .ai-highlight h3 { font-size: 1.3rem; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+        .ai-highlight-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-top: 24px; }
+        .ai-item { padding: 16px; border-radius: var(--radius-sm); background: rgba(255,255,255,.06); }
+        .ai-item .metric { font-size: 1.4rem; font-weight: 700; color: var(--primary-light); }
+        .ai-item .label { font-size: .85rem; color: rgba(255,255,255,.7); margin-top: 4px; }
+
+        /* ===== Certificates ===== */
+        .certs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+        .cert-item {
+            padding: 14px 20px; border-radius: var(--radius-sm);
+            background: var(--surface); border: 1px solid var(--border);
+            display: flex; align-items: center; gap: 10px; font-size: .88rem; font-weight: 500;
+        }
+        .cert-item .badge { font-size: 1.2rem; }
+
+        /* ===== Contact ===== */
+        .contact-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;
+        }
+        .contact-item {
+            padding: 20px; border-radius: var(--radius-sm);
+            background: var(--surface); border: 1px solid var(--border);
+            text-align: center; transition: var(--transition);
+        }
+        .contact-item:hover { border-color: var(--primary); transform: translateY(-2px); }
+        .contact-item .label { font-size: .8rem; color: var(--text3); margin-bottom: 4px; }
+        .contact-item .value { font-size: .95rem; font-weight: 600; }
+
+        /* ===== Footer ===== */
+        footer {
+            padding: 32px 0; text-align: center; color: var(--text3); font-size: .85rem;
+            border-top: 1px solid var(--border);
+        }
+
+        /* ===== AI Chat Button ===== */
+        .chat-fab {
+            position: fixed; bottom: 32px; right: 32px; z-index: 99;
+            width: 56px; height: 56px; border-radius: 50%;
+            background: var(--primary); color: #fff; border: none;
+            font-size: 1.5rem; cursor: pointer;
+            box-shadow: 0 4px 16px rgba(37,99,235,.35);
+            transition: var(--transition);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .chat-fab:hover { transform: scale(1.1); box-shadow: 0 6px 24px rgba(37,99,235,.45); }
+        .chat-fab .tooltip {
+            position: absolute; right: 64px; top: 50%; transform: translateY(-50%);
+            background: var(--text); color: #fff; padding: 6px 14px; border-radius: 6px;
+            font-size: .8rem; white-space: nowrap; opacity: 0; pointer-events: none;
+            transition: var(--transition);
+        }
+        .chat-fab:hover .tooltip { opacity: 1; }
+
+        /* ===== Scroll to top ===== */
+        .scroll-top {
+            position: fixed; bottom: 100px; right: 32px; z-index: 99;
+            width: 44px; height: 44px; border-radius: 50%;
+            background: var(--surface); border: 1px solid var(--border); color: var(--text2);
+            font-size: 1.2rem; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none; transition: var(--transition);
+            box-shadow: var(--shadow);
+        }
+        .scroll-top.visible { opacity: 1; pointer-events: auto; }
+
+        /* ===== Education ===== */
+        .edu-card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 28px; max-width: 600px; margin: 0 auto;
+            text-align: center;
+        }
+        .edu-card .school { font-size: 1.1rem; font-weight: 600; }
+        .edu-card .major { color: var(--text2); margin-bottom: 4px; }
+        .edu-card .detail { font-size: .85rem; color: var(--text3); }
+        .edu-card .honors { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 12px; }
+        .edu-card .honors span {
+            padding: 2px 12px; border-radius: 12px; font-size: .78rem;
+            background: rgba(234,88,12,.08); color: var(--accent-orange);
+        }
+
+        /* ===== Responsive ===== */
+        @media (max-width: 768px) {
+            .hero { padding: 100px 0 60px; }
+            .hero .container { grid-template-columns: 1fr; gap: 40px; text-align: center; }
+            .hero-content h1 { font-size: 2.2rem; }
+            .hero-tags, .hero-actions { justify-content: center; }
+            .hero-avatar { width: 200px; font-size: 4rem; }
+            .hero-avatar::after { display: none; }
+            .nav-links { display: none; }
+            .nav-toggle { display: flex; }
+            .nav-links.open {
+                display: flex; flex-direction: column; position: absolute; top: 64px; left: 0; right: 0;
+                background: var(--surface); padding: 20px 24px; border-bottom: 1px solid var(--border);
+                gap: 16px;
+            }
+            .nav-actions .btn-sm { display: none; }
+            section { padding: 56px 0; }
+            .section-header { margin-bottom: 36px; }
+            .ai-highlight { padding: 32px 20px; }
+            .projects-grid { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 480px) {
+            .hero-content h1 { font-size: 1.8rem; }
+            .hero-avatar { width: 160px; font-size: 3rem; }
+            .advantages-grid { grid-template-columns: 1fr; }
+            .skills-grid { grid-template-columns: 1fr; }
+            .contact-grid { grid-template-columns: 1fr 1fr; }
+            .certs-grid { grid-template-columns: 1fr 1fr; }
+        }
+
+        /* ===== Print ===== */
+        @media print {
+            nav, .chat-fab, .scroll-top { display: none; }
+            .hero { min-height: auto; padding: 40px 0; }
+            section { padding: 24px 0; page-break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ========== Nav ========== -->
+<nav>
+    <div class="container">
+        <div class="nav-logo">武<span>渭星</span></div>
+        <ul class="nav-links" id="navLinks">
+            <li><a href="#advantages">优势</a></li>
+            <li><a href="#experience">经历</a></li>
+            <li><a href="#projects">项目</a></li>
+            <li><a href="#skills">技能</a></li>
+            <li><a href="#contact">联系</a></li>
+        </ul>
+        <div class="nav-actions">
+            <a href="#contact" class="btn btn-primary btn-sm">联系我</a>
+            <button class="nav-toggle" id="navToggle" aria-label="菜单">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </div>
+</nav>
+
+<!-- ========== Hero ========== -->
+<section class="hero" id="home">
+    <div class="container">
+        <div class="hero-content">
+            <div class="hero-status">
+                <span class="dot"></span>
+                开放机会 · 北京
+            </div>
+            <h1>武渭星 <span>WU</span></h1>
+            <p class="hero-subtitle">实施运维工程师</p>
+            <p class="hero-location">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                北京 · 3年经验 · 统招本科
+            </p>
+            <div class="hero-tags">
+                <span class="tag">AI增强型运维</span>
+                <span class="tag green">Docker / K8s</span>
+                <span class="tag orange">阿里云</span>
+                <span class="tag purple">国产化信创</span>
+                <span class="tag">政企项目交付</span>
+            </div>
+            <div class="hero-actions">
+                <a href="#contact" class="btn btn-primary">📬 联系我</a>
+                <a href="javascript:void(0)" onclick="window.print()" class="btn btn-outline">📄 下载简历</a>
+                <a href="https://github.com/你的用户名" target="_blank" class="btn btn-outline">🐙 GitHub</a>
+            </div>
+        </div>
+        <div class="hero-avatar">武</div>
+    </div>
+</section>
+
+<!-- ========== Advantages ========== -->
+<section id="advantages">
+    <div class="container">
+        <div class="section-header">
+            <h2>个人优势</h2>
+            <p>3年政企项目实施 + 运维 + 云迁移全流程经验</p>
+            <div class="line"></div>
+        </div>
+        <div class="advantages-grid">
+            <div class="adv-card">
+                <div class="icon">🏗️</div>
+                <h3>全栈运维能力</h3>
+                <p>熟悉阿里云环境、Docker/K8s、微服务部署升级、故障排查、国产麒麟/CentOS系统运维。具备项目文档编写、测试用例编制、用户培训、权限管控完整交付能力。</p>
+            </div>
+            <div class="adv-card">
+                <div class="icon">☁️</div>
+                <h3>云迁移与架构升级</h3>
+                <p>可独立完成架构升级、云下业务云上迁移、Oracle转MySQL数据适配，能对接开发、业务方跨部门沟通。</p>
+            </div>
+            <div class="adv-card">
+                <div class="icon">🤖</div>
+                <h3>AI辅助运维 · 核心亮点</h3>
+                <p>具备本地私有化大模型（Ollama/Qwen）部署与API调用经验，熟悉Dify平台、Chatflow/Workflow编排；使用Obsidian搭建运维知识库，高频故障查询从10min压缩至1min内。</p>
+            </div>
+            <div class="adv-card">
+                <div class="icon">🛠️</div>
+                <h3>AI增强开发效率</h3>
+                <p>熟练使用Claude Code、GitHub Copilot辅助生成自动化运维脚本、日志分析摘要、巡检报告初稿，脚本编写效率提升40%，日常报告效率提升50%+。</p>
+            </div>
+            <div class="adv-card">
+                <div class="icon">📋</div>
+                <h3>政企交付全流程</h3>
+                <p>统筹系统上下线申请、检修方案编制、配合研发完成版本更新与功能测试、编写运维周报月报及项目归档材料。</p>
+            </div>
+            <div class="adv-card">
+                <div class="icon">🎯</div>
+                <h3>跨部门沟通与培训</h3>
+                <p>对接地市公司业务人员，提供功能指导、快速定位解决业务问题。曾任班级团支书、院学生会干事，具备良好组织协调能力。</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ========== Experience ========== -->
+<section id="experience" style="background: var(--surface);">
+    <div class="container">
+        <div class="section-header">
+            <h2>工作经历</h2>
+            <p>3年政企项目实施与运维实战经验</p>
+            <div class="line"></div>
+        </div>
+        <div class="timeline" style="max-width: 700px; margin: 0 auto;">
+
+            <div class="timeline-item">
+                <span class="timeline-period">2025.03 — 至今</span>
+                <h3>中电金信软件有限公司</h3>
+                <h4>实施运维专员 · 国网项目</h4>
+                <ul>
+                    <li>负责阿里云平台服务组件、应用容器、数据库日常功能巡检、故障排查、服务包更新及漏洞修复，输出标准化巡检记录</li>
+                    <li>统筹系统上下线申请、周月检修方案编制，配合研发完成版本更新、功能测试与平台优化</li>
+                    <li>对接地市公司业务人员，提供功能指导、快速定位解决业务问题，处理日常需求对接</li>
+                    <li>严格按照权限流程完成人员权限变更、登记备案，编写运维周报、月报及项目归档材料</li>
+                </ul>
+            </div>
+
+            <div class="timeline-item">
+                <span class="timeline-period">2024.07 — 2025.03</span>
+                <h3>北京金轩锋科技发展有限公司</h3>
+                <h4>运维专员</h4>
+                <ul>
+                    <li>负责监测平台 7×24 小时稳定运行，对接移动、公安监控视频链路，保障信息传输通畅</li>
+                    <li>协助监测点异常数据排查、问题溯源，保障业务数据完整可用</li>
+                </ul>
+            </div>
+
+            <div class="timeline-item">
+                <span class="timeline-period">2023.10 — 2024.06</span>
+                <h3>南京华苏科技有限公司</h3>
+                <h4>实施工程师</h4>
+                <ul>
+                    <li>负责阿里云生产环境服务部署、版本升级、架构配置、微服务故障排查与问题修复</li>
+                    <li>开展微服务包部署更新，通过前端页面、API 接口、代码调试完成功能测试</li>
+                    <li>使用禅道对接开发与测试团队，记录跟进平台报错、闭环问题处理</li>
+                </ul>
+            </div>
+
+        </div>
+    </div>
+</section>
+
+<!-- ========== Projects ========== -->
+<section id="projects">
+    <div class="container">
+        <div class="section-header">
+            <h2>项目经历</h2>
+            <p>从架构升级到AI辅助运维的完整实践</p>
+            <div class="line"></div>
+        </div>
+        <div class="projects-grid">
+
+            <!-- AI辅助运维 -->
+            <div class="project-card">
+                <div class="role">主要负责人 · 个人实践</div>
+                <h3>私有化大模型辅助运维工具探索</h3>
+                <div class="period">2025.04 — 至今</div>
+                <p>在本地服务器基于Docker完成Ollama部署，拉取并运行Qwen2.5系列模型，搭建Dify社区版环境，构建基于Obsidian双链笔记的运维知识库。</p>
+                <div class="tech-stack">
+                    <span>Docker</span>
+                    <span>Ollama</span>
+                    <span>Qwen2.5</span>
+                    <span>Dify</span>
+                    <span>Obsidian</span>
+                    <span>Claude Code</span>
+                </div>
+                <ul class="highlights">
+                    <li>实现"问题描述 → 自动匹配关联笔记 → 生成排查建议"的增强检索流程</li>
+                    <li>高频故障查询时间从平均10分钟压缩至1分钟内</li>
+                    <li>AI辅助生成Shell/Python巡检脚本，人工编写时间缩短约40%</li>
+                </ul>
+                <div class="result">📊 形成"模型部署→平台配置→知识库挂载→场景验证"完整实践链路</div>
+            </div>
+
+            <!-- 架构升级 -->
+            <div class="project-card">
+                <div class="role">实施工程师</div>
+                <h3>统一权限3.0架构升级</h3>
+                <div class="period">2023.10 — 2024.06</div>
+                <p>负责项目架构升级研发部署、云下环境整体云上迁移、全流程链路监控。</p>
+                <div class="tech-stack">
+                    <span>阿里云</span>
+                    <span>Oracle</span>
+                    <span>MySQL</span>
+                    <span>微服务</span>
+                    <span>禅道</span>
+                </div>
+                <ul class="highlights">
+                    <li>完成原有单体架构升级改造，承担大批量业务数据迁移工作</li>
+                    <li>独立完成Oracle→MySQL迁移适配、存储结构改造</li>
+                    <li>独立编写测试用例、部署实施文档、用户操作手册全套交付材料</li>
+                </ul>
+            </div>
+
+            <!-- 毕设 -->
+            <div class="project-card">
+                <div class="role">全栈开发 · 毕设</div>
+                <h3>基于GVA架构的社区管理平台</h3>
+                <div class="period">2023.06 — 2023.11</div>
+                <p>采用Viper配置管理、Zap日志组件，基于Gorm实现结构体映射建表与数据库操作。</p>
+                <div class="tech-stack">
+                    <span>Go</span>
+                    <span>Vue</span>
+                    <span>Gorm</span>
+                    <span>MySQL</span>
+                    <span>ElementUI</span>
+                </div>
+                <ul class="highlights">
+                    <li>实现登录凭证颁发、拦截器鉴权，保障后台资源访问安全</li>
+                    <li>采用事务机制实现权限安全更新，配置Cors跨域支持前后端联调</li>
+                    <li>使用ElementUI+Axios+Pinia完成前端页面搭建与数据状态管理</li>
+                </ul>
+            </div>
+
+        </div>
+    </div>
+</section>
+
+<!-- ========== Skills ========== -->
+<section id="skills" style="background: var(--surface);">
+    <div class="container">
+        <div class="section-header">
+            <h2>专业技能</h2>
+            <p>全栈运维能力 + AI增强提效</p>
+            <div class="line"></div>
+        </div>
+        <div class="skills-grid">
+
+            <div class="skill-group">
+                <h3>🐧 操作系统 & 服务器</h3>
+                <div class="skill-items">
+                    <span class="skill-item highlight">CentOS</span>
+                    <span class="skill-item highlight">麒麟OS</span>
+                    <span class="skill-item">Ubuntu</span>
+                    <span class="skill-item">Shell脚本</span>
+                    <span class="skill-item">Linux性能调优</span>
+                    <span class="skill-item">systemd</span>
+                </div>
+            </div>
+
+            <div class="skill-group">
+                <h3>☁️ 云平台 & 容器</h3>
+                <div class="skill-items">
+                    <span class="skill-item highlight">阿里云</span>
+                    <span class="skill-item highlight">Docker</span>
+                    <span class="skill-item highlight">Kubernetes</span>
+                    <span class="skill-item">Docker Compose</span>
+                    <span class="skill-item">微服务部署</span>
+                </div>
+            </div>
+
+            <div class="skill-group">
+                <h3>🗄️ 中间件 & 数据库</h3>
+                <div class="skill-items">
+                    <span class="skill-item highlight">Nginx</span>
+                    <span class="skill-item highlight">Redis</span>
+                    <span class="skill-item">ELK</span>
+                    <span class="skill-item">Zabbix</span>
+                    <span class="skill-item highlight">MySQL</span>
+                    <span class="skill-item highlight">Oracle</span>
+                    <span class="skill-item">Oracle→MySQL迁移</span>
+                </div>
+            </div>
+
+            <div class="skill-group">
+                <h3>🔧 CI/CD & 项目管理</h3>
+                <div class="skill-items">
+                    <span class="skill-item">Jenkins</span>
+                    <span class="skill-item">Git</span>
+                    <span class="skill-item">禅道</span>
+                    <span class="skill-item">Ansible</span>
+                </div>
+            </div>
+
+            <div class="skill-group">
+                <h3>💻 编程开发</h3>
+                <div class="skill-items">
+                    <span class="skill-item">Python</span>
+                    <span class="skill-item">Go</span>
+                    <span class="skill-item">Shell</span>
+                    <span class="skill-item">GVA架构</span>
+                    <span class="skill-item">前后端联调</span>
+                </div>
+            </div>
+
+            <div class="skill-group">
+                <h3>🤖 AI & 知识工程 ⭐</h3>
+                <div class="skill-items">
+                    <span class="skill-item highlight">Ollama</span>
+                    <span class="skill-item highlight">Dify</span>
+                    <span class="skill-item highlight">Qwen</span>
+                    <span class="skill-item highlight">RAG知识库</span>
+                    <span class="skill-item highlight">Obsidian</span>
+                    <span class="skill-item highlight">Claude Code</span>
+                    <span class="skill-item">GitHub Copilot</span>
+                    <span class="skill-item">提示词工程</span>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- AI Highlight -->
+        <div class="ai-highlight">
+            <h3>🤖 AI增强运维 · 成果量化</h3>
+            <p style="color:rgba(255,255,255,.7);font-size:.9rem;">AI辅助运维不是概念——已经在实际工作中落地并产生可量化的效率提升</p>
+            <div class="ai-highlight-grid">
+                <div class="ai-item">
+                    <div class="metric">10min → 1min</div>
+                    <div class="label">高频故障定位时间</div>
+                </div>
+                <div class="ai-item">
+                    <div class="metric">+40%</div>
+                    <div class="label">脚本编写效率提升</div>
+                </div>
+                <div class="ai-item">
+                    <div class="metric">+50%</div>
+                    <div class="label">日常报告效率提升</div>
+                </div>
+                <div class="ai-item">
+                    <div class="metric">全链路</div>
+                    <div class="label">模型部署→场景验证已跑通</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ========== Certificates ========== -->
+<section id="certificates">
+    <div class="container">
+        <div class="section-header">
+            <h2>资格证书</h2>
+            <div class="line"></div>
+        </div>
+        <div class="certs-grid" style="max-width: 600px; margin: 0 auto;">
+            <div class="cert-item"><span class="badge">🛡️</span> 网络安全管理员</div>
+            <div class="cert-item"><span class="badge">💻</span> 计算机三级</div>
+            <div class="cert-item"><span class="badge">🎖️</span> 退伍证（两年服役）</div>
+            <div class="cert-item"><span class="badge">🗣️</span> 普通话二级乙等</div>
+            <div class="cert-item"><span class="badge">🚗</span> 驾驶证 C1</div>
+            <div class="cert-item"><span class="badge">📖</span> 职场英语一级</div>
+        </div>
+    </div>
+</section>
+
+<!-- ========== Education ========== -->
+<section id="education" style="background: var(--surface);">
+    <div class="container">
+        <div class="section-header">
+            <h2>教育背景</h2>
+            <div class="line"></div>
+        </div>
+        <div class="edu-card">
+            <div class="school">🎓 湖北工程学院新技术学院</div>
+            <div class="major">计算机科学与技术 · 本科</div>
+            <div class="detail">2020 — 2024 · 专业排名前20%</div>
+            <div class="honors">
+                <span>🏆 计算机设计大赛省级三等奖</span>
+                <span>🏆 大创省级奖项</span>
+                <span>🌟 优秀团员</span>
+                <span>🌟 优秀班干</span>
+                <span>🌟 优秀青年志愿者</span>
+                <span>🌟 优秀团支书</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ========== Contact ========== -->
+<section id="contact">
+    <div class="container">
+        <div class="section-header">
+            <h2>联系我</h2>
+            <p>开放北京实施运维岗位机会 · 期待与您沟通</p>
+            <div class="line"></div>
+        </div>
+        <div class="contact-grid" style="max-width: 700px; margin: 0 auto;">
+            <div class="contact-item">
+                <div class="label">📱 电话</div>
+                <div class="value"><a href="tel:19054750791">190-5475-0791</a></div>
+            </div>
+            <div class="contact-item">
+                <div class="label">📧 邮箱</div>
+                <div class="value"><a href="mailto:18335357090@163.com">18335357090@163.com</a></div>
+            </div>
+            <div class="contact-item">
+                <div class="label">💬 微信</div>
+                <div class="value">wxw-_-168</div>
+            </div>
+            <div class="contact-item">
+                <div class="label">🐙 GitHub</div>
+                <div class="value"><a href="https://github.com/你的用户名" target="_blank">你的用户名</a></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ========== Footer ========== -->
+<footer>
+    <div class="container">
+        <p>© 2026 武渭星 · AI增强型运维工程师 · 北京</p>
+    </div>
+</footer>
+
+<!-- ========== AI Chat FAB ========== -->
+<button class="chat-fab" onclick="alert('🤖 AI助手功能即将上线！\n后端部署后将接入Ollama本地大模型，\n欢迎随时联系我。')" aria-label="AI助手">
+    🤖
+    <span class="tooltip">AI 助手（即将上线）</span>
+</button>
+
+<!-- ========== Scroll Top ========== -->
+<button class="scroll-top" id="scrollTop" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="回到顶部">↑</button>
+
+<!-- ========== JavaScript ========== -->
+<script>
+    // Mobile nav toggle
+    const toggle = document.getElementById('navToggle');
+    const navLinks = document.getElementById('navLinks');
+    toggle.addEventListener('click', () => navLinks.classList.toggle('open'));
+
+    // Close nav on link click (mobile)
+    navLinks.querySelectorAll('a').forEach(a => a.addEventListener('click', () => navLinks.classList.remove('open')));
+
+    // Scroll to top button
+    const scrollBtn = document.getElementById('scrollTop');
+    window.addEventListener('scroll', () => {
+        scrollBtn.classList.toggle('visible', window.scrollY > 400);
+    });
+
+    // Smooth scroll for anchor links (offset for fixed nav)
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function(e) {
+            const href = this.getAttribute('href');
+            if (href === '#') return;
+            e.preventDefault();
+            const target = document.querySelector(href);
+            if (target) target.scrollIntoView({ behavior: 'smooth' });
+        });
+    });
+</script>
+</body>
+</html>
