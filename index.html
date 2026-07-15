@@ -1566,7 +1566,9 @@
                 <span class="tag tag-primary">Docker / K8s</span>
                 <span class="tag tag-green">阿里云</span>
                 <span class="tag tag-violet">AI + LLM 部署</span>
-                <span class="tag tag-orange">国产化信创</span>
+                <span class="tag tag-orange">审计大模型</span>
+                <span class="tag">DataWorks</span>
+                <span class="tag">国产化信创</span>
                 <span class="tag">政企交付</span>
                 <span class="tag">微服务运维</span>
                 <span class="tag">CI/CD</span>
@@ -1671,25 +1673,30 @@
                     <span class="period">2025.03 <span class="dot-sep">·</span> 至今</span>
                     <h3>中电金信软件有限公司</h3>
                     <div class="company-meta">
-                        实施运维专员 · 国网数字化审计平台项目
-                        <span class="industry-tag">🏢 政企 · 能源</span>
+                        实施运维专员 · 国网数字化审计平台项目（驻场国电通/北京信通）
+                        <span class="industry-tag">🏢 政企 · 能源 · AI</span>
                     </div>
                     <div class="tech-pills">
-                        <span>阿里云</span>
+                        <span>阿里云(ECS/SLB/RDS/OSS)</span>
                         <span>Docker</span>
                         <span>Kubernetes</span>
+                        <span>审计大模型</span>
+                        <span>DataWorks</span>
                         <span>Nacos</span>
                         <span>Redis</span>
                         <span>Nginx</span>
                         <span>MySQL</span>
                         <span>Shell</span>
-                        <span>禅道</span>
+                        <span>云监控</span>
                     </div>
                     <ul>
-                        <li>负责阿里云平台服务组件、应用容器、数据库日常功能巡检、故障排查、服务包更新及漏洞修复，输出标准化巡检记录，保障平台 99.9% 可用性</li>
-                        <li>统筹系统上下线申请、周月检修方案编制，配合研发完成版本更新、功能测试与平台优化，涉及 Nacos 配置管理、Redis 缓存维护、Nginx 反向代理调优等中间件运维</li>
-                        <li>对接地市公司业务人员提供功能指导，快速定位并解决业务问题，完成日常需求对接与跨部门沟通</li>
-                        <li>严格按照权限流程完成人员权限变更（RBAC）、登记备案权限申请表，编写运维周报、月报及项目归档材料</li>
+                        <li>负责阿里云生产环境日常巡检与监控告警，通过云监控配置 ECS、SLB、RDS 等资源的告警规则与阈值，每日巡检服务组件、应用容器、数据库状态，输出标准化巡检报告</li>
+                        <li>负责平台涉及的审计大模型服务的部署更新与基础运维保障，涉及模型服务的版本迭代、资源配置调整与运行状态监控</li>
+                        <li>通过 DataWorks 完成业务数据的离线同步与调度配置，保障数据链路稳定，处理数据同步异常与延迟问题</li>
+                        <li>微服务中间件运维：管理 Nacos 配置中心（配置变更下发、命名空间隔离）、维护 Redis 缓存集群（Key 过期策略、内存使用率监控）、Nginx 反向代理规则配置与 SSL 证书更新</li>
+                        <li>统筹系统上下线申请与检修计划编制，配合研发完成版本更新、功能测试、蓝绿发布与灰度验证</li>
+                        <li>漏洞修复与安全加固：定期扫描并修复系统层与中间件安全漏洞（如 Redis 未授权访问、Nginx 版本升级、SSL 协议漏洞等）</li>
+                        <li>严格按照 RBAC 权限模型完成人员权限变更与备案登记，编写运维周报月报及项目归档材料</li>
                     </ul>
                 </div>
 
@@ -1704,15 +1711,16 @@
                     <div class="tech-pills">
                         <span>Linux</span>
                         <span>Shell</span>
-                        <span>网络协议</span>
-                        <span>视频链路</span>
+                        <span>网络协议(TCP/IP)</span>
                         <span>Zabbix</span>
                         <span>Grafana</span>
+                        <span>链路监控</span>
                     </div>
                     <ul>
-                        <li>负责监测平台 7×24 小时稳定运行，对接移动、公安监控视频链路，保障信息传输通畅，设计链路健康检查脚本实现故障自动告警</li>
-                        <li>通过 Zabbix + Grafana 搭建监控看板，实时监测服务器状态与网络链路质量，做到故障发现到响应 5 分钟内闭环</li>
-                        <li>协助监测点异常数据排查、问题溯源，保障业务数据完整可用；编写 Shell 脚本实现批量日志采集与初步分析</li>
+                        <li>负责监测平台 7×24 小时稳定运行，对接移动、公安监控视频链路，保障 GB/T 28181 视频流传输通畅，配置网络策略与带宽监控</li>
+                        <li>设计 Shell 链路健康检查脚本，定期探测视频推流状态与网络延迟，异常时自动触发告警通知，实现故障发现到响应 5 分钟内闭环</li>
+                        <li>基于 Zabbix 监控服务器资源（CPU/内存/磁盘/网络 IO），通过 Grafana 搭建可视化监控看板，辅助日常巡检与异常趋势分析</li>
+                        <li>协助排查视频流中断、画面卡顿、推流失败等链路问题，通过 tcpdump 抓包分析网络丢包与时延，配合运营商定位链路故障节点</li>
                     </ul>
                 </div>
 
@@ -1725,21 +1733,26 @@
                         <span class="industry-tag">🏢 政企 · 信息化</span>
                     </div>
                     <div class="tech-pills">
-                        <span>阿里云</span>
+                        <span>阿里云(ECS/RDS)</span>
                         <span>Docker</span>
                         <span>微服务</span>
+                        <span>Nacos</span>
+                        <span>Sentinel</span>
                         <span>Oracle</span>
                         <span>MySQL</span>
+                        <span>DataWorks</span>
                         <span>Jenkins</span>
                         <span>Git</span>
-                        <span>禅道</span>
                         <span>Shell</span>
                     </div>
                     <ul>
-                        <li>负责阿里云生产环境服务部署、版本升级、架构配置、微服务故障排查与问题修复，涉及 Nacos 注册中心、Sentinel 流量控制、SkyWalking 链路追踪等微服务组件运维</li>
-                        <li>开展微服务包部署更新，通过前端页面、API 接口、代码调试完成功能测试；基于 Jenkins + Git 实现持续集成与自动化部署流程</li>
-                        <li>使用禅道对接开发与测试团队，记录跟进平台报错、闭环问题处理，熟悉政企业务组织架构与技术落地全流程</li>
-                        <li>参与 Oracle 数据库向 MySQL 迁移适配，完成存储结构改造与数据一致性校验，积累数据库迁移实操经验</li>
+                        <li>负责阿里云生产环境服务部署与版本升级，基于 Docker 容器化部署微服务模块，通过 Nacos 注册中心管理服务发现与配置下发</li>
+                        <li>配合研发完成微服务架构配置与排查，涉及 Sentinel 流量控制规则配置、网关路由调整、服务调用链异常排查</li>
+                        <li>负责云下环境整体迁移至阿里云，通过 DataWorks 完成历史数据同步与增量配置，保障业务迁移平滑无感</li>
+                        <li>参与 Oracle 数据库向 MySQL 的数据迁移适配工作，完成表结构转换、字段类型映射、数据一致性校验，编写存储过程与定时同步脚本</li>
+                        <li>基于 Jenkins + Git 搭建持续集成流水线，实现代码构建、镜像打包、服务部署的半自动化，减少人工操作失误</li>
+                        <li>编写测试用例、部署实施文档、用户操作手册等全套交付材料；使用禅道对接开发与测试团队，跟进报错闭环处理</li>
+                        <li>完成试点省市身份数据梳理与新版架构宣贯培训，支撑系统上线后的用户适应与问题答疑</li>
                     </ul>
                 </div>
 
