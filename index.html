@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>武渭星 · 实施运维工程师</title>
+    <title>武渭星 · 实施运维工程师 / AI Agent 落地</title>
     <meta name="description" content="武渭星 - AI增强型运维工程师，3年政企项目实施经验，北京求职" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
@@ -1552,7 +1552,7 @@
                 📍 开放机会 · 北京
             </div>
             <h1>武渭星 <span class="gradient-text">Wu</span></h1>
-            <p class="hero-subtitle">实施运维工程师 · 3年政企经验</p>
+            <p class="hero-subtitle">实施运维工程师 · AI Agent 落地实践 · 3年政企经验</p>
             <div class="hero-meta">
                 <span>🎓 统招本科 · 计算机</span>
                 <span class="divider"></span>
@@ -1586,7 +1586,7 @@
                     <span class="status-ring"><span class="inner"></span></span>
                 </div>
                 <div class="name">武渭星</div>
-                <div class="title">实施运维工程师</div>
+                <div class="title">实施运维工程师 · AI Agent 落地</div>
                 <div class="contact-row">
                     <span>📧 <a href="mailto:18335357090@163.com">18335357090@163.com</a></span>
                     <span>📱 <a href="tel:19054750791">190-5475-0791</a></span>
@@ -1780,6 +1780,34 @@
         </div>
         <div class="projects-grid">
 
+            <!-- 智能运维知识库 Agent -->
+            <div class="project-card reveal">
+                <div class="project-header">
+                    <span class="role-badge">⭐ 个人学习 · AI Agent 落地</span>
+                    <span class="period-sm">2026.05 — 至今</span>
+                </div>
+                <h3>智能运维知识库 Agent</h3>
+                <p class="project-sub">基于 Python 后端生态独立研发的多智能体知识库问答系统，面向企业运维场景，把故障排查经验沉淀为可交互的智能问答与自动化执行。</p>
+                <div class="project-tech">
+                    <span class="ai-tech">Python</span>
+                    <span class="ai-tech">FastAPI</span>
+                    <span class="ai-tech">Chroma</span>
+                    <span class="ai-tech">Hybrid RAG</span>
+                    <span class="ai-tech">Ollama</span>
+                    <span>MCP</span>
+                    <span>Redis</span>
+                    <span>MySQL</span>
+                    <span>SQLAlchemy</span>
+                </div>
+                <ul class="project-highlights">
+                    <li>构建<strong>Hybrid RAG 检索引擎</strong>：BM25 关键词 + Chroma 向量双路检索，加权融合 + 重排；知识资产绑定来源/版本 Hash/有效状态，回答可溯源</li>
+                    <li>实现<strong>本地大模型高可用链路</strong>：Ollama 部署 Qwen2.5-7B，统一 ModelRouter 路由 + 三态熔断 + SSE 流式安全降级</li>
+                    <li>封装<strong>MCP 受控工具调用</strong>：跨系统操作必须用户显式确认，异步队列 + 权限校验 + 幂等 + 人工兜底，规避高危操作风险</li>
+                    <li>设计<strong>分层记忆系统</strong>：Redis 短期滑动窗口 + MySQL 长期快照，控制上下文长度，实测 LLM Token 输入量下降 13.54%</li>
+                </ul>
+                <div class="project-result">📌 个人学习实践项目，完整验证"多智能体 + 混合检索 + 本地大模型 + 受控工具调用"的企业级 AI Agent 落地链路</div>
+            </div>
+
             <!-- AI 辅助运维 -->
             <div class="project-card reveal">
                 <div class="project-header">
@@ -1949,15 +1977,18 @@
                 <div class="cat-header">
                     <div class="cat-icon" style="background:rgba(6,182,212,.1)">🤖</div>
                     <h3>AI & 知识工程 ⭐ 差异化亮点</h3>
-                    <span class="cat-count">6项</span>
+                    <span class="cat-count">9项</span>
                 </div>
                 <div class="skills-grid-skills">
+                    <div class="skill-bar-item"><div class="skill-name">Hybrid RAG 混合检索 <span class="level">掌握</span></div><div class="skill-bar-track"><div class="skill-bar-fill" data-width="72"></div></div></div>
+                    <div class="skill-bar-item"><div class="skill-name">多智能体架构 <span class="level">学习中</span></div><div class="skill-bar-track"><div class="skill-bar-fill" data-width="45"></div></div></div>
+                    <div class="skill-bar-item"><div class="skill-name">MCP 工具调用 <span class="level">学习中</span></div><div class="skill-bar-track"><div class="skill-bar-fill" data-width="40"></div></div></div>
                     <div class="skill-bar-item"><div class="skill-name">Ollama 私有化部署 <span class="level">熟练</span></div><div class="skill-bar-track"><div class="skill-bar-fill" data-width="82"></div></div></div>
                     <div class="skill-bar-item"><div class="skill-name">Dify 平台搭建 <span class="level">掌握</span></div><div class="skill-bar-track"><div class="skill-bar-fill" data-width="75"></div></div></div>
                     <div class="skill-bar-item"><div class="skill-name">RAG 知识库构建 <span class="level">掌握</span></div><div class="skill-bar-track"><div class="skill-bar-fill" data-width="70"></div></div></div>
+                    <div class="skill-bar-item"><div class="skill-name">Chroma 向量数据库 <span class="level">学习中</span></div><div class="skill-bar-track"><div class="skill-bar-fill" data-width="45"></div></div></div>
                     <div class="skill-bar-item"><div class="skill-name">Obsidian 知识管理 <span class="level">熟练</span></div><div class="skill-bar-track"><div class="skill-bar-fill" data-width="85"></div></div></div>
                     <div class="skill-bar-item"><div class="skill-name">Claude Code / Copilot <span class="level">熟练</span></div><div class="skill-bar-track"><div class="skill-bar-fill" data-width="80"></div></div></div>
-                    <div class="skill-bar-item"><div class="skill-name">Prompt Engineering <span class="level">掌握</span></div><div class="skill-bar-track"><div class="skill-bar-fill" data-width="72"></div></div></div>
                 </div>
             </div>
 
