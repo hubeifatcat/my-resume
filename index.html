@@ -1800,10 +1800,12 @@
                     <span>SQLAlchemy</span>
                 </div>
                 <ul class="project-highlights">
-                    <li>构建<strong>Hybrid RAG 检索引擎</strong>：BM25 关键词 + Chroma 向量双路检索，加权融合 + 重排；知识资产绑定来源/版本 Hash/有效状态，回答可溯源</li>
-                    <li>实现<strong>本地大模型高可用链路</strong>：Ollama 部署 Qwen2.5-7B，统一 ModelRouter 路由 + 三态熔断 + SSE 流式安全降级</li>
-                    <li>封装<strong>MCP 受控工具调用</strong>：跨系统操作必须用户显式确认，异步队列 + 权限校验 + 幂等 + 人工兜底，规避高危操作风险</li>
-                    <li>设计<strong>分层记忆系统</strong>：Redis 短期滑动窗口 + MySQL 长期快照，控制上下文长度，实测 LLM Token 输入量下降 13.54%</li>
+                    <li><strong>多 Agent 协作架构</strong>：自研 Runtime Harness 调度器串联会话生命周期 + Blackboard 黑板机制，业务逻辑解耦为意图路由/风险判定/Prompt组装/安全校验四大独立单元</li>
+                    <li><strong>Hybrid RAG 检索引擎</strong>：BM25 关键词 + Chroma 向量双路检索，加权融合 + 重排；知识资产绑定来源/版本 Hash/有效状态，回答可溯源，实测 <strong>Recall@4=100%，MRR=0.876，P95 检索 260ms</strong></li>
+                    <li><strong>分层记忆系统</strong>：Redis 短期滑动窗口 + MySQL 长期快照，控制上下文长度，实测 <strong>LLM Token 输入量下降 13.54%</strong></li>
+                    <li><strong>本地大模型高可用</strong>：Ollama 部署 Qwen2.5-7B，统一 ModelRouter 路由 + 三态熔断 + SSE 流式安全降级，<strong>9 组故障注入测试全部通过</strong></li>
+                    <li><strong>MCP 受控工具调用</strong>：跨系统操作必须用户显式确认 + 二次确认，异步队列 + 权限校验 + 幂等 + 租约超时 + 人工兜底，规避高危操作风险</li>
+                    <li><strong>工程化回归体系</strong>：会话级脱敏 Trace + 全资产哈希固化 + 一键自动化回归脚手架，满足可复现、可审计标准</li>
                 </ul>
                 <div class="project-result">📌 个人学习实践项目，完整验证"多智能体 + 混合检索 + 本地大模型 + 受控工具调用"的企业级 AI Agent 落地链路</div>
             </div>
