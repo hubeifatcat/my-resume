@@ -1192,6 +1192,15 @@ footer .container {
   border-bottom-right-radius: 5px;
 }
 
+.bubble a {
+  color: var(--blue);
+  text-decoration: underline;
+}
+
+.msg.user .bubble a {
+  color: #fff;
+}
+
 .bubble .text {
   white-space: pre-line;
 }

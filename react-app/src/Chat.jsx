@@ -56,6 +56,24 @@ function getSmartResponse(input) {
   return direct || fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)];
 }
 
+// 把回答里的邮箱、网址、手机号渲染成可点击链接
+function renderText(text) {
+  const re = /(https?:\/\/[^\s]+|[\w.+-]+@[\w-]+(?:\.[\w-]+)+|1\d{10}|0\d{2,3}-?\d{7,8})/g;
+  return text.split(re).map((part, i) => {
+    if (!part) return null;
+    if (/^https?:\/\//i.test(part)) {
+      return <a key={i} href={part} target="_blank" rel="noreferrer">{part}</a>;
+    }
+    if (/^[\w.+-]+@[\w-]+(?:\.[\w-]+)+$/.test(part)) {
+      return <a key={i} href={"mailto:" + part}>{part}</a>;
+    }
+    if (/^1\d{10}$/.test(part) || /^0\d{2,3}-?\d{7,8}$/.test(part)) {
+      return <a key={i} href={"tel:" + part.replace(/-/g, "")}>{part}</a>;
+    }
+    return part;
+  });
+}
+
 export default function Chat({ onHome }) {
   const [messages, setMessages] = useState([
     {
@@ -232,7 +250,7 @@ export default function Chat({ onHome }) {
               <div className={"msg " + m.role} key={i}>
                 <div className="avatar">{m.role === "bot" ? "AI" : "我"}</div>
                 <div className="bubble">
-                  <div className="text">{m.text}</div>
+                  <div className="text">{renderText(m.text)}</div>
                   {m.suggestions && (
                     <div className="suggestions">
                       {m.suggestions.map((s) => (
