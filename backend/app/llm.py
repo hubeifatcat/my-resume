@@ -7,7 +7,7 @@ from .knowledge import SKILLS, MCP_TOOLS
 
 # 通过环境变量决定是否启用大模型；默认 knowledge 表示只用内置知识库
 def llm_enabled() -> bool:
-    return os.getenv("LLM_PROVIDER", "knowledge").lower() in ("ollama", "dashscope")
+    return os.getenv("LLM_PROVIDER", "knowledge").lower() in ("ollama", "dashscope", "deepseek")
 
 
 def build_system_prompt(skills, tools) -> str:
@@ -27,18 +27,26 @@ def build_system_prompt(skills, tools) -> str:
 
 async def ask_llm(message: str, skills, tools) -> str:
     provider = os.getenv("LLM_PROVIDER", "knowledge").lower()
-    # Ollama 和 DashScope 都兼容 OpenAI 的 /v1/chat/completions 格式，只差地址和鉴权头
+    # Ollama / DashScope / DeepSeek 都兼容 OpenAI 的 chat/completions 格式，只差地址和鉴权头
     if provider == "ollama":
         base = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434").rstrip("/")
         url = base + "/v1/chat/completions"
         model = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
         headers = {"Content-Type": "application/json"}
-    else:
+    elif provider == "dashscope":
         url = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
         model = os.getenv("DASHSCOPE_MODEL", "qwen-plus")
         api_key = os.getenv("DASHSCOPE_API_KEY", "")
         if not api_key:
             raise RuntimeError("DASHSCOPE_API_KEY not set")
+        headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
+    else:
+        base = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com").rstrip("/")
+        url = base + "/chat/completions"
+        model = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
+        api_key = os.getenv("DEEPSEEK_API_KEY", "")
+        if not api_key:
+            raise RuntimeError("DEEPSEEK_API_KEY not set")
         headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
 
     payload = {

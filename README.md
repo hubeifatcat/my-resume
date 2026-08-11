@@ -78,5 +78,5 @@ resume-website/
 ## 后端（2026-08-11）
 
 - `backend/`：FastAPI 简历 AI 后端，提供 `POST /api/chat`、`GET /api/tools`、`GET /api/health`。
-- 默认用内置武渭星知识库回答；`.env` 可切换 `LLM_PROVIDER=ollama` 或 `dashscope`。
+- 默认用内置武渭星知识库回答；`.env` 可切换 `LLM_PROVIDER=ollama` / `dashscope` / `deepseek`。
 - 部署到服务器：上传 `backend/`，执行 `docker compose up -d --build`，详见 `backend/部署说明.md`。
