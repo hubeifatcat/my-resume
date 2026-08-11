@@ -4,7 +4,8 @@ from .seed import SEED_DOCUMENTS
 
 
 def _tokenize(text: str) -> list[str]:
-    return re.findall(r"[\w\u4e00-\u9fff]+", text.lower())
+    # 英文/数字按词切，中文按单个汉字切，避免整串中文被当成一个词
+    return re.findall(r"[a-z0-9_]+|[\u4e00-\u9fff]", text.lower())
 
 
 def chunk_text(text: str, size: int = 500, overlap: int = 60) -> list[str]:
