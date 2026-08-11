@@ -7,6 +7,8 @@ services:
     volumes:
       - qdrant_data:/qdrant/storage
     restart: unless-stopped
+    networks:
+      - backend-net
 
   wuxing-backend:
     build: .
@@ -19,11 +21,14 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
+      - backend-net
       - hermes-net
     depends_on:
       - qdrant
 
 networks:
+  backend-net:
+    driver: bridge
   hermes-net:
     external: true
     name: hermes_hermes-net
