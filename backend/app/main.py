@@ -74,13 +74,19 @@ async def chat(req: ChatRequest):
                     top_k = int(os.getenv("RAG_TOP_K", "5"))
                     if provider in ("dashscope", "fastembed"):
                         hits = await search(req.message, top_k=top_k)
-                        context = "\n".join([f"- {text}" for text, _score in hits])
+                        context = "\n".join(
+                            [f"- [来源：{h['source']}] {h['text']}" for h in hits]
+                        )
                     else:
-                        context = "\n".join([f"- {text}" for text in keyword_search(req.message, top_k)])
+                        context = "\n".join(
+                            [f"- [来源：{h['source']}] {h['text']}" for h in keyword_search(req.message, top_k)]
+                        )
                 except Exception:
                     # 检索失败时回退到关键词检索，再失败则走无上下文 LLM
                     try:
-                        context = "\n".join([f"- {text}" for text in keyword_search(req.message)])
+                        context = "\n".join(
+                            [f"- [来源：{h['source']}] {h['text']}" for h in keyword_search(req.message)]
+                        )
                     except Exception:
                         context = ""
             answer = await ask_llm(req.message, req.skills, req.tools, context)

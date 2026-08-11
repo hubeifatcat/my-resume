@@ -41,7 +41,7 @@ async def upsert_documents(docs: list[dict]) -> None:
     await client.close()
 
 
-async def search(query: str, top_k: int = 5) -> list[tuple[str, float]]:
+async def search(query: str, top_k: int = 5) -> list[dict]:
     """把问题向量化后在向量库检索，返回 (文本, 分数) 列表。"""
     client = await get_client()
     vector = await embed_query(query)
@@ -51,7 +51,10 @@ async def search(query: str, top_k: int = 5) -> list[tuple[str, float]]:
         limit=top_k,
     )
     await client.close()
-    return [(p.payload.get("text", ""), p.score) for p in result]
+    return [
+        {"text": p.payload.get("text", ""), "source": p.payload.get("source", ""), "score": p.score}
+        for p in result
+    ]
 
 
 def rag_enabled() -> bool:

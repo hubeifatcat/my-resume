@@ -26,14 +26,14 @@ for _i, seed in enumerate(SEED_DOCUMENTS):
         CHUNKS.append({"text": chunk, "source": seed["source"]})
 
 
-def keyword_search(query: str, top_k: int = 5) -> list[str]:
-    """简单 BM25 风格的关键词检索：按词重叠打分，返回最相关的文本块。"""
+def keyword_search(query: str, top_k: int = 5) -> list[dict]:
+    """简单 BM25 风格的关键词检索：按词重叠打分，返回最相关的文本块（含来源）。"""
     q_tokens = set(_tokenize(query))
     scored = []
     for item in CHUNKS:
         tokens = _tokenize(item["text"])
         score = sum(1 for t in q_tokens if t in tokens)
         if score > 0:
-            scored.append((score, item["text"]))
+            scored.append((score, item))
     scored.sort(key=lambda x: -x[0])
-    return [text for _score, text in scored[:top_k]]
+    return [item for _score, item in scored[:top_k]]
