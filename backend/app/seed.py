@@ -44,4 +44,44 @@ SEED_DOCUMENTS = [
         "source": "联系方式",
         "text": "电话 190-5475-0791；邮箱 18335357090@163.com；微信 wwx-_-168；GitHub github.com/hubeifatcat；简历网站 hubeifatcat.github.io/my-resume。目前在北京，接受出差，最快 9 月初到岗。",
     },
+    {
+        "source": "技术知识-AI基础",
+        "text": "LLM（大语言模型）通过海量文本训练，按概率预测下一个 Token 生成回答。关键概念：Token 是文本切分的最小单位；temperature 控制随机性（越高越发散，越低越稳定）；System Prompt 定义人设和规则；上下文窗口决定一次能放多少内容。Prompt 工程要点：给角色、给任务、给步骤、给示例、给输出格式，把模型当成会用语言的新员工。",
+    },
+    {
+        "source": "技术知识-RAG",
+        "text": "RAG（检索增强生成）流程：文档接入 → 清洗切块 → Embedding 向量化 → 存入向量库 → 用户问题向量化 → 检索 Top-N → Rerank 重排 → 拼进 Prompt → 模型生成。切块策略：按章节/语义切，固定窗口加 10%-20% 重叠；元数据带来源、权限、版本。混合检索：BM25 管精确关键词，向量管语义，RRF 融合再重排。评估指标：Recall@K、MRR、命中来源准确率、P95 延迟。权限隔离必须服务端强制，不能只靠前端。",
+    },
+    {
+        "source": "技术知识-Agent与MCP",
+        "text": "Agent 是能自主规划、调用工具、完成任务的 LLM 应用。单 Agent 足够就不做多 Agent；复杂流程用 Orchestrator 拆任务，子 Agent 执行，黑板/共享状态汇总。工具调用要白名单、入参校验、超时重试、审计日志；敏感操作要人工确认。MCP 是 Agent 与外部工具/数据的统一协议，MCP Server 提供工具，MCP Client 调用；SKILL 是带 description、prompt、params、examples、version 的可复用能力包，描述要写清触发条件。",
+    },
+    {
+        "source": "技术知识-模型部署",
+        "text": "大模型部署三条路：API（如 DeepSeek/DashScope，按 Token 计费）、托管推理（PAI-EAS）、自建 vLLM（私有化、高并发）。vLLM 是 OpenAI 兼容接口，支持 Continuous Batching 和 PagedAttention，显存紧张用 AWQ/GPTQ 量化。Ollama 适合本地开发和小规模测试。部署要点：统一模型路由层，代码只认 OpenAI 兼容接口；超时、重试、熔断、降级；按 GPU 利用率扩缩容；模型版本可回滚；统计 Token 和 GPU 成本。",
+    },
+    {
+        "source": "技术知识-后端研发",
+        "text": "FastAPI 是 Python 异步 Web 框架。生产要点：Pydantic 校验请求；CORS 配置允许来源；健康检查 GET /api/health；聊天接口用 POST；敏感配置走环境变量不写代码；连接池管理数据库；优雅退出处理 SIGTERM 排空请求；日志带 trace_id 便于排查。REST 设计：资源用名词，动作用 HTTP 方法，返回统一 JSON 结构，错误返回 4xx/5xx 和可读 message。",
+    },
+    {
+        "source": "技术知识-云原生",
+        "text": "Docker 把应用和环境打包成镜像，容器是运行实例。K8s 里 Pod 是调度最小单位，Deployment 管副本和滚动更新，Service 提供稳定访问，Ingress 负责外部路由。生产配置：resources requests/limits、readiness/liveness 探针、PDB、滚动更新 maxUnavailable/maxSurge、命名空间隔离 dev/test/prod。Caddy 是自动 HTTPS 的反向代理，路径反代可用 handle_path 剥前缀。NACOS 配置中心用命名空间隔离环境，敏感配置用 KMS/Secret，不落明文。",
+    },
+    {
+        "source": "技术知识-阿里云运维",
+        "text": "阿里云核心组件：ECS 虚拟机、SLB/ALB 负载均衡、RDS/PolarDB 数据库、OSS 对象存储、Redis 缓存、SLS 日志服务、DataWorks 数据集成、ACK 容器服务。运维要点：VPC 内网隔离，数据库不暴露公网；告警规则按业务设置阈值；慢 SQL 看执行计划；SLS 用 Logtail 采集容器日志，关键字段建索引；权限用 RAM 最小化；安全加固包括补丁、TLS、Redis 未授权修复。",
+    },
+    {
+        "source": "技术知识-数据库",
+        "text": "MySQL/Oracle 面试高频：索引 B+ 树加快查询，但不能乱建；慢查询先看执行计划，避免全表扫描；事务 ACID、隔离级别、锁；分页优化；迁移注意数据类型映射、DDL 转换、存储过程重构、数据一致性校验。Redis 要点：缓存穿透/击穿/雪崩、Key 设计、TTL、大 Key 热 Key、持久化 RDB/AOF。",
+    },
+    {
+        "source": "技术知识-面试高频",
+        "text": "面试高频框架：自我介绍用“背景-能力-成果-目标”；项目讲“背景-难点-方案-量化结果”；技术题按“是什么-为什么-怎么做-有什么坑”回答。AI 岗位常问：RAG 原理、Agent 模式、MCP 是什么、vLLM 并发、显存估算、模型服务化、权限隔离、Prompt 注入。运维转研发要突出：能独立交付项目、理解生产环境、代码有工程化意识。",
+    },
+    {
+        "source": "技术知识-职业发展",
+        "text": "从运维转 AI 研发的路径：先补 Python 工程化（模块、依赖、日志、测试）和 FastAPI 后端；再做 RAG 和 Agent 项目；最后补模型服务化与部署。用 Codex/Claude 边做项目边学，把研究沉淀成笔记。求职定位：AI 应用/Agent 开发 + 大模型后端/推理部署，简历突出可展示的线上项目和量化成果。",
+    },
 ]
