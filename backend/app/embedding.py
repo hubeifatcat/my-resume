@@ -2,8 +2,12 @@ import os
 
 import httpx
 
-# DashScope 兼容 OpenAI 的 /embeddings 接口
-DASHSCOPE_BASE = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+# DashScope 兼容 OpenAI 的 /embeddings 接口；可自定义工作空间 Base URL
+DEFAULT_BASE = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+
+
+def _base_url() -> str:
+    return os.getenv("DASHSCOPE_BASE_URL", DEFAULT_BASE).rstrip("/")
 
 
 def _api_key() -> str:
@@ -15,7 +19,7 @@ def _api_key() -> str:
 
 async def embed_texts(texts: list[str]) -> list[list[float]]:
     """批量向量化，返回和输入顺序一致的向量列表。"""
-    url = DASHSCOPE_BASE + "/embeddings"
+    url = _base_url() + "/embeddings"
     headers = {
         "Authorization": f"Bearer {_api_key()}",
         "Content-Type": "application/json",

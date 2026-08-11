@@ -37,7 +37,11 @@ async def ask_llm(message: str, skills, tools, context: str = "") -> str:
         model = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
         headers = {"Content-Type": "application/json"}
     elif provider == "dashscope":
-        url = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
+        base = os.getenv(
+            "DASHSCOPE_BASE_URL",
+            "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        ).rstrip("/")
+        url = base + "/chat/completions"
         model = os.getenv("DASHSCOPE_MODEL", "qwen-plus")
         api_key = os.getenv("DASHSCOPE_API_KEY", "")
         if not api_key:
