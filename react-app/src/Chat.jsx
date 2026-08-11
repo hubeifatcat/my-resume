@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 
-// 后端接入点：部署完成后改成真实 API 地址
-const BACKEND_URL = "";
+// 后端接入点：真实 API 地址（Caddy 反代，已剥离 /wuxing 前缀）
+const BACKEND_URL = "https://api.liumingqing.com/wuxing/api/chat";
+// 健康检查走 GET /api/health，/api/chat 只接受 POST
+const BACKEND_HEALTH_URL = BACKEND_URL.replace(/\/api\/chat$/, "/api/health");
 
 const skills = [
   { id: "fault-diagnosis", name: "故障排查", desc: "按日志链路定位故障根因" },
@@ -79,7 +81,7 @@ export default function Chat({ onHome }) {
     async function checkBackend() {
       if (BACKEND_URL) {
         try {
-          const resp = await fetch(BACKEND_URL, { method: "GET", signal: AbortSignal.timeout(3000) });
+          const resp = await fetch(BACKEND_HEALTH_URL, { method: "GET", signal: AbortSignal.timeout(3000) });
           if (resp.ok) {
             setStatus("后端服务已连接 · 真实 AI 回复中");
             setStatusOnline(true);

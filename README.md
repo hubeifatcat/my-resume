@@ -73,7 +73,7 @@ resume-website/
 - 源码位于 `react-app/`，使用 React + Vite 构建。
 - 部署：本地构建后把 `react-app/dist` 推送到 `gh-pages` 分支，仓库 Settings → Pages 的 Source 选择 gh-pages 分支 `/root`。
 - 收录策略：`index.html` 带 `noindex, nofollow`，`public/robots.txt` 禁止抓取，正文由 JS 渲染，爬虫抓到的只有标题和入口。
-- AI 助手页左侧 SKILL/MCP 模块为前端占位，后端接入点见 `react-app/src/Chat.jsx` 的 `BACKEND_URL`。
+- AI 助手页左侧 SKILL/MCP 模块为前端占位，后端已接入 `https://api.liumingqing.com/wuxing/api/chat`（配置在 `react-app/src/Chat.jsx`）。
 
 ## 后端（2026-08-11）
 
