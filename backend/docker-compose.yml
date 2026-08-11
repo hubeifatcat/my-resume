@@ -9,3 +9,10 @@ services:
     restart: unless-stopped
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    networks:
+      - hermes-net
+
+networks:
+  hermes-net:
+    external: true
+    name: hermes_hermes-net
