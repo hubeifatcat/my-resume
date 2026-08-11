@@ -1834,3 +1834,103 @@ footer .container {
     grid-template-columns: 1fr;
   }
 }
+
+/* ---------- Portfolio v3 (glass) ---------- */
+.site.v3 {
+  background: linear-gradient(135deg, #f8fafc 0%, #ecfdf5 42%, #fff7ed 100%);
+}
+
+.site.v3 .p-hero {
+  background: transparent;
+  border-bottom-color: rgba(255, 255, 255, 0.85);
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.62);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.74);
+  box-shadow: 0 10px 40px rgba(11, 18, 32, 0.06);
+}
+
+.site.v3 .p-kicker.glass,
+.site.v3 .p-story.glass {
+  border-radius: 8px;
+}
+
+.site.v3 .p-story.glass {
+  padding: 16px 18px;
+  max-width: 680px;
+}
+
+.site.v3 .p-hero-side.glass {
+  border-radius: 8px;
+}
+
+.site.v3 .p-stats div {
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.site.v3 .p-about.glass {
+  padding: 22px;
+  border-radius: 8px;
+  max-width: 860px;
+}
+
+.site.v3 .p-job.glass {
+  border-radius: 8px;
+}
+
+.site.v3 .p-project.glass {
+  border-radius: 8px;
+}
+
+.p-stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 0;
+}
+
+.p-stack span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 6px;
+  background: rgba(5, 150, 105, 0.07);
+  border: 1px solid rgba(5, 150, 105, 0.16);
+  color: var(--green);
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.p-skills {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.p-skill {
+  padding: 20px;
+  border-radius: 8px;
+}
+
+.p-skill h3 {
+  font-size: 1rem;
+  margin-bottom: 12px;
+}
+
+.site.v3 .p-contact.glass {
+  border-radius: 8px;
+}
+
+.site.v3 .p-contact div {
+  background: rgba(255, 255, 255, 0.55);
+}
+
+@media (max-width: 900px) {
+  .p-skills {
+    grid-template-columns: 1fr;
+  }
+}
