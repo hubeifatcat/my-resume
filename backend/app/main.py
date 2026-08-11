@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from .knowledge import SKILLS, MCP_TOOLS, answer_question
 from .llm import llm_enabled, ask_llm
 from .rag import rag_enabled, search
+from .retrieval import keyword_search
 
 # FastAPI 应用入口：对外暴露聊天、工具列表、健康检查三个接口。
 app = FastAPI(title="Wuxing Resume AI API", version="1.0.0")
@@ -69,11 +70,19 @@ async def chat(req: ChatRequest):
             context = ""
             if rag_enabled():
                 try:
-                    hits = await search(req.message, top_k=int(os.getenv("RAG_TOP_K", "5")))
-                    context = "\n".join([f"- {text}" for text, _score in hits])
+                    provider = os.getenv("EMBEDDING_PROVIDER", "keyword").lower()
+                    top_k = int(os.getenv("RAG_TOP_K", "5"))
+                    if provider in ("dashscope", "fastembed"):
+                        hits = await search(req.message, top_k=top_k)
+                        context = "\n".join([f"- {text}" for text, _score in hits])
+                    else:
+                        context = "\n".join([f"- {text}" for text in keyword_search(req.message, top_k)])
                 except Exception:
-                    # 检索失败不影响对话，继续走无上下文的 LLM
-                    context = ""
+                    # 检索失败时回退到关键词检索，再失败则走无上下文 LLM
+                    try:
+                        context = "\n".join([f"- {text}" for text in keyword_search(req.message)])
+                    except Exception:
+                        context = ""
             answer = await ask_llm(req.message, req.skills, req.tools, context)
             return ChatResponse(answer=answer, conversation_id=conv_id, mode="llm")
         except Exception:
