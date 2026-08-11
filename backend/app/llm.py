@@ -5,11 +5,13 @@ import httpx
 from .knowledge import SKILLS, MCP_TOOLS
 
 
+# 通过环境变量决定是否启用大模型；默认 knowledge 表示只用内置知识库
 def llm_enabled() -> bool:
     return os.getenv("LLM_PROVIDER", "knowledge").lower() in ("ollama", "dashscope")
 
 
 def build_system_prompt(skills, tools) -> str:
+    # system prompt 用来约束“人设”：回答只基于武渭星的真实经历
     skill_names = ", ".join(skills) if skills else "全部"
     tool_names = ", ".join(tools) if tools else "全部"
     return (
@@ -25,6 +27,7 @@ def build_system_prompt(skills, tools) -> str:
 
 async def ask_llm(message: str, skills, tools) -> str:
     provider = os.getenv("LLM_PROVIDER", "knowledge").lower()
+    # Ollama 和 DashScope 都兼容 OpenAI 的 /v1/chat/completions 格式，只差地址和鉴权头
     if provider == "ollama":
         base = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434").rstrip("/")
         url = base + "/v1/chat/completions"
@@ -47,8 +50,10 @@ async def ask_llm(message: str, skills, tools) -> str:
         "temperature": 0.4,
         "max_tokens": 800,
     }
+    # 30 秒超时；调用失败会抛异常，由 main.py 统一回退到知识库
     async with httpx.AsyncClient(timeout=30) as client:
         resp = await client.post(url, json=payload, headers=headers)
         resp.raise_for_status()
         data = resp.json()
+        # OpenAI 兼容响应结构：choices[0].message.content
         return data["choices"][0]["message"]["content"].strip()

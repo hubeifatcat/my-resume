@@ -1,3 +1,6 @@
+# 武渭星简历知识库：不依赖外部服务也能回答问题，也是 LLM 不可用时的兜底。
+
+# 供前端 /api/tools 展示的 Skill 列表
 SKILLS = [
     {"id": "fault-diagnosis", "name": "故障排查", "desc": "按日志链路定位故障根因"},
     {"id": "log-analysis", "name": "日志分析", "desc": "日志摘要、异常提取"},
@@ -5,12 +8,14 @@ SKILLS = [
     {"id": "rag-search", "name": "知识库检索", "desc": "RAG 检索运维知识库"},
 ]
 
+# 供前端 /api/tools 展示的 MCP 工具列表
 MCP_TOOLS = [
     {"id": "server-status", "name": "服务器状态", "desc": "CPU / 内存 / 磁盘 / 进程"},
     {"id": "log-query", "name": "日志查询", "desc": "按关键字查询最近日志"},
     {"id": "ticket-create", "name": "工单创建", "desc": "创建变更 / 故障工单"},
 ]
 
+# 核心问答库：键是分类名，值是对应回答，内容来自简历和项目档案
 KNOWLEDGE = {
     "工作经历": "武渭星有 3 年政企实施运维经验：\n\n1. 中电金信（2025.03-至今）实施运维专员，负责国网数字化审计平台阿里云运维，涉及 Docker/K8s、Nacos、Redis、Nginx 等中间件，保障 99.9% 可用率。\n2. 北京金轩锋（2024.07-2025.03）运维专员，7×24 视频监控平台，Zabbix+Grafana 监控看板。\n3. 南京华苏科技（2023.10-2024.06）实施工程师，微服务部署升级、Oracle 到 MySQL 迁移、Jenkins CI/CD。",
     "技术": "云平台：阿里云、Docker、Kubernetes\n中间件：Nginx、Redis、Nacos、Sentinel\n数据库：MySQL、Oracle\n监控：Zabbix、Grafana、ELK、Prometheus\nCI/CD：Jenkins、Git\n编程：Shell（熟练）、Python（掌握）、Go（基础）\nAI：Ollama 私有化部署、Dify、RAG 知识库、Claude Code",
@@ -30,9 +35,11 @@ FALLBACKS = [
 
 def find_answer(text: str):
     lower = text.lower()
+    # 第一步：先看是否命中某个分类名（如“工作经历”）
     for key, answer in KNOWLEDGE.items():
         if key in text or key in lower:
             return answer
+    # 第二步：按关键词归类，覆盖用户换一种说法提问的情况
     if any(k in lower for k in ("经历", "经验", "工作")):
         return KNOWLEDGE["工作经历"]
     if any(k in lower for k in ("技术", "技能", "擅长", "栈")):
@@ -51,6 +58,7 @@ def find_answer(text: str):
 
 
 def answer_question(text: str) -> str:
+    # 命中知识库就返回；完全没命中时随机给一句引导性兜底
     direct = find_answer(text)
     if direct:
         return direct
