@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 from .knowledge import SKILLS, MCP_TOOLS, answer_question
 from .llm import llm_enabled, ask_llm
+from .rag import rag_enabled, search
 
 # FastAPI 应用入口：对外暴露聊天、工具列表、健康检查三个接口。
 app = FastAPI(title="Wuxing Resume AI API", version="1.0.0")
@@ -65,7 +66,15 @@ async def chat(req: ChatRequest):
     # 优先走大模型；任何异常都回退到内置知识库，保证接口不挂
     if llm_enabled():
         try:
-            answer = await ask_llm(req.message, req.skills, req.tools)
+            context = ""
+            if rag_enabled():
+                try:
+                    hits = await search(req.message, top_k=int(os.getenv("RAG_TOP_K", "5")))
+                    context = "\n".join([f"- {text}" for text, _score in hits])
+                except Exception:
+                    # 检索失败不影响对话，继续走无上下文的 LLM
+                    context = ""
+            answer = await ask_llm(req.message, req.skills, req.tools, context)
             return ChatResponse(answer=answer, conversation_id=conv_id, mode="llm")
         except Exception:
             pass

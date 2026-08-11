@@ -10,22 +10,25 @@ def llm_enabled() -> bool:
     return os.getenv("LLM_PROVIDER", "knowledge").lower() in ("ollama", "dashscope", "deepseek")
 
 
-def build_system_prompt(skills, tools) -> str:
+def build_system_prompt(skills, tools, context: str = "") -> str:
     # system prompt 用来约束“人设”：回答只基于武渭星的真实经历
     skill_names = ", ".join(skills) if skills else "全部"
     tool_names = ", ".join(tools) if tools else "全部"
-    return (
+    prompt = (
         "你是武渭星个人简历网站的 AI 运维助手。只能基于武渭星的真实经历回答，不要编造。\n"
         "武渭星：3 年政企 SaaS 实施交付与运维经验，驻场国网信产项目，熟悉阿里云、Docker/K8s、"
         "Nacos/Redis/Nginx、DataWorks、Oracle/MySQL；AI 辅助运维已落地（故障定位 10min→1min，"
         "脚本效率 +40%，报告效率 +50%）；电话 19054750791，邮箱 18335357090@163.com，微信 wwx-_-168。\n"
         f"本次对话允许使用的 Skill：{skill_names}\n"
         f"本次对话允许使用的 MCP 工具：{tool_names}\n"
-        "回答保持简洁、用中文，不确定的内容明确说明。"
     )
+    if context:
+        prompt += "\n以下是检索到的参考资料，优先依据它们回答：\n" + context
+    prompt += "\n回答保持简洁、用中文，不确定的内容明确说明。"
+    return prompt
 
 
-async def ask_llm(message: str, skills, tools) -> str:
+async def ask_llm(message: str, skills, tools, context: str = "") -> str:
     provider = os.getenv("LLM_PROVIDER", "knowledge").lower()
     # Ollama / DashScope / DeepSeek 都兼容 OpenAI 的 chat/completions 格式，只差地址和鉴权头
     if provider == "ollama":
@@ -52,7 +55,7 @@ async def ask_llm(message: str, skills, tools) -> str:
     payload = {
         "model": model,
         "messages": [
-            {"role": "system", "content": build_system_prompt(skills, tools)},
+            {"role": "system", "content": build_system_prompt(skills, tools, context)},
             {"role": "user", "content": message},
         ],
         "temperature": 0.4,

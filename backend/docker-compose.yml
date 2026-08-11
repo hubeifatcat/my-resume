@@ -1,4 +1,13 @@
 services:
+  qdrant:
+    image: qdrant/qdrant:v1.9.7
+    container_name: wuxing-qdrant
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    restart: unless-stopped
+
   wuxing-backend:
     build: .
     container_name: wuxing-backend
@@ -11,8 +20,13 @@ services:
       - "host.docker.internal:host-gateway"
     networks:
       - hermes-net
+    depends_on:
+      - qdrant
 
 networks:
   hermes-net:
     external: true
     name: hermes_hermes-net
+
+volumes:
+  qdrant_data:
