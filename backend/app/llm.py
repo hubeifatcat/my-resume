@@ -1,0 +1,54 @@
+import os
+
+import httpx
+
+from .knowledge import SKILLS, MCP_TOOLS
+
+
+def llm_enabled() -> bool:
+    return os.getenv("LLM_PROVIDER", "knowledge").lower() in ("ollama", "dashscope")
+
+
+def build_system_prompt(skills, tools) -> str:
+    skill_names = ", ".join(skills) if skills else "全部"
+    tool_names = ", ".join(tools) if tools else "全部"
+    return (
+        "你是武渭星个人简历网站的 AI 运维助手。只能基于武渭星的真实经历回答，不要编造。\n"
+        "武渭星：3 年政企 SaaS 实施交付与运维经验，驻场国网信产项目，熟悉阿里云、Docker/K8s、"
+        "Nacos/Redis/Nginx、DataWorks、Oracle/MySQL；AI 辅助运维已落地（故障定位 10min→1min，"
+        "脚本效率 +40%，报告效率 +50%）；电话 19054750791，邮箱 18335357090@163.com，微信 wwx-_-168。\n"
+        f"本次对话允许使用的 Skill：{skill_names}\n"
+        f"本次对话允许使用的 MCP 工具：{tool_names}\n"
+        "回答保持简洁、用中文，不确定的内容明确说明。"
+    )
+
+
+async def ask_llm(message: str, skills, tools) -> str:
+    provider = os.getenv("LLM_PROVIDER", "knowledge").lower()
+    if provider == "ollama":
+        base = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434").rstrip("/")
+        url = base + "/v1/chat/completions"
+        model = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
+        headers = {"Content-Type": "application/json"}
+    else:
+        url = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
+        model = os.getenv("DASHSCOPE_MODEL", "qwen-plus")
+        api_key = os.getenv("DASHSCOPE_API_KEY", "")
+        if not api_key:
+            raise RuntimeError("DASHSCOPE_API_KEY not set")
+        headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
+
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": build_system_prompt(skills, tools)},
+            {"role": "user", "content": message},
+        ],
+        "temperature": 0.4,
+        "max_tokens": 800,
+    }
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.post(url, json=payload, headers=headers)
+        resp.raise_for_status()
+        data = resp.json()
+        return data["choices"][0]["message"]["content"].strip()

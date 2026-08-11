@@ -1,0 +1,11 @@
+services:
+  wuxing-backend:
+    build: .
+    container_name: wuxing-backend
+    ports:
+      - "8001:8001"
+    env_file:
+      - .env
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

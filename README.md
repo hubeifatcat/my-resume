@@ -74,3 +74,9 @@ resume-website/
 - 部署：本地构建后把 `react-app/dist` 推送到 `gh-pages` 分支，仓库 Settings → Pages 的 Source 选择 gh-pages 分支 `/root`。
 - 收录策略：`index.html` 带 `noindex, nofollow`，`public/robots.txt` 禁止抓取，正文由 JS 渲染，爬虫抓到的只有标题和入口。
 - AI 助手页左侧 SKILL/MCP 模块为前端占位，后端接入点见 `react-app/src/Chat.jsx` 的 `BACKEND_URL`。
+
+## 后端（2026-08-11）
+
+- `backend/`：FastAPI 简历 AI 后端，提供 `POST /api/chat`、`GET /api/tools`、`GET /api/health`。
+- 默认用内置武渭星知识库回答；`.env` 可切换 `LLM_PROVIDER=ollama` 或 `dashscope`。
+- 部署到服务器：上传 `backend/`，执行 `docker compose up -d --build`，详见 `backend/部署说明.md`。
