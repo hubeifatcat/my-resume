@@ -1,4 +1,5 @@
 import { projects } from "../../data/content.js";
+import demoShot from "../../assets/screenshots/demo.png";
 
 export default function ProjectsSection() {
   return (
@@ -34,7 +35,7 @@ export default function ProjectsSection() {
                   </a>
                 ))}
                 {project.shot && (
-                  <img className="project-shot" src={project.shot} alt={`${project.name} 截图`} loading="lazy" />
+                  <img className="project-shot" src={project.shot === "demo" ? demoShot : project.shot} alt={`${project.name} 截图`} loading="lazy" />
                 )}
               </div>
             </article>

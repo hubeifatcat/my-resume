@@ -86,7 +86,7 @@ export const projects = [
       { label: "在线 Demo", url: "#/demo" },
       { label: "GitHub 源码", url: "https://github.com/hubeifatcat/my-resume" },
     ],
-    shot: "assets/screenshots/demo.png",
+    shot: "demo",
   },
   {
     name: "国网数字化审计平台部署",

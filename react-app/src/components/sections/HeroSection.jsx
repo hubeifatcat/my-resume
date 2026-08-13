@@ -2,6 +2,7 @@ import { NavLink } from "react-router-dom";
 import ParticleField from "../../ParticleField.jsx";
 import { SITE } from "../../config.js";
 import { stack } from "../../data/content.js";
+import demoShot from "../../assets/screenshots/demo.png";
 
 export default function HeroSection() {
   return (
@@ -31,7 +32,7 @@ export default function HeroSection() {
             <span className="ma-live-dot"></span>
             <img
               className="ma-shot"
-              src="assets/screenshots/demo.png"
+              src={demoShot}
               alt="多智能体 Demo 界面截图"
             />
             <span className="ma-shot-caption">真实 Demo · 轨迹与黑板实时可查</span>
