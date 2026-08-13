@@ -33,7 +33,6 @@ export default function HeroSection() {
               className="ma-shot"
               src="assets/screenshots/demo.png"
               alt="多智能体 Demo 界面截图"
-              loading="lazy"
             />
             <span className="ma-shot-caption">真实 Demo · 轨迹与黑板实时可查</span>
           </div>
