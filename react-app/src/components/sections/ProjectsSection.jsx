@@ -35,7 +35,7 @@ export default function ProjectsSection() {
                   </a>
                 ))}
                 {project.shot && (
-                  <img className="project-shot" src={project.shot === "demo" ? demoShot : project.shot} alt={`${project.name} 截图`} loading="lazy" />
+                  <img className="project-shot" src={project.shot === "demo" ? demoShot : project.shot} alt={`${project.name} 截图`} />
                 )}
               </div>
             </article>
