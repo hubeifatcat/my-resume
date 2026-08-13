@@ -34,6 +34,11 @@ def build_system_prompt(skills, tools, context: str = "") -> str:
 
 
 async def ask_llm(message: str, skills, tools, context: str = "") -> str:
+    system = build_system_prompt(skills, tools, context)
+    return await chat_completion(system, message, max_tokens=800)
+
+
+async def chat_completion(system: str, user: str, max_tokens: int = 1200) -> str:
     provider = os.getenv("LLM_PROVIDER", "knowledge").lower()
     # Ollama / DashScope / DeepSeek 都兼容 OpenAI 的 chat/completions 格式，只差地址和鉴权头
     if provider == "ollama":
@@ -64,11 +69,11 @@ async def ask_llm(message: str, skills, tools, context: str = "") -> str:
     payload = {
         "model": model,
         "messages": [
-            {"role": "system", "content": build_system_prompt(skills, tools, context)},
-            {"role": "user", "content": message},
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
         ],
         "temperature": 0.4,
-        "max_tokens": 800,
+        "max_tokens": max_tokens,
     }
     # 30 秒超时；调用失败会抛异常，由 main.py 统一回退到知识库
     async with httpx.AsyncClient(timeout=30) as client:

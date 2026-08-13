@@ -1,0 +1,483 @@
+"""SQLite 用户与会话历史存储，预留切换 MySQL 的 Repository 边界。"""
+
+import json
+import os
+import sqlite3
+import threading
+import time
+from pathlib import Path
+
+
+DB_LOCK = threading.Lock()
+
+
+def _db_path() -> str:
+    url = os.getenv("DATABASE_URL", "sqlite:///data/wuxing.db")
+    if url.startswith("sqlite:///"):
+        path = url[len("sqlite:///"):]
+    else:
+        path = url
+    if not os.path.isabs(path):
+        base = Path(os.getenv("APP_DATA_DIR", Path(__file__).resolve().parent.parent))
+        path = str(base / path)
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def _connect():
+    conn = sqlite3.connect(_db_path(), check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    return conn
+
+
+def init_db():
+    with DB_LOCK:
+        conn = _connect()
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL UNIQUE,
+                email TEXT,
+                password_hash TEXT NOT NULL,
+                role TEXT NOT NULL DEFAULT 'user',
+                created_at REAL NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS conversations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                conversation_id TEXT NOT NULL UNIQUE,
+                title TEXT,
+                messages TEXT NOT NULL,
+                trace TEXT NOT NULL,
+                created_at REAL NOT NULL,
+                updated_at REAL NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS announcements (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                content TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'published',
+                created_by INTEGER,
+                created_at REAL NOT NULL,
+                updated_at REAL NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS audit_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                username TEXT,
+                action TEXT NOT NULL,
+                target_type TEXT,
+                target_id TEXT,
+                detail TEXT,
+                created_at REAL NOT NULL
+            )
+            """
+        )
+        cols = [row["name"] for row in conn.execute("PRAGMA table_info(users)")]
+        if "role" not in cols:
+            conn.execute("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'")
+        conn.commit()
+        conn.close()
+
+
+def create_user(username: str, email: str, password_hash: str, role: str = "user") -> dict:
+    with DB_LOCK:
+        conn = _connect()
+        try:
+            cur = conn.execute(
+                "INSERT INTO users (username, email, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?)",
+                (username, email or None, password_hash, role, time.time()),
+            )
+            conn.commit()
+            return {"id": cur.lastrowid, "username": username, "email": email or "", "role": role}
+        except sqlite3.IntegrityError:
+            raise ValueError("username already exists")
+        finally:
+            conn.close()
+
+
+def get_user_by_username(username: str):
+    conn = _connect()
+    try:
+        row = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def get_user_by_id(user_id: int):
+    conn = _connect()
+    try:
+        row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def save_conversation(user_id: int, conversation_id: str, title: str, messages: list, trace: dict):
+    now = time.time()
+    with DB_LOCK:
+        conn = _connect()
+        try:
+            row = conn.execute(
+                "SELECT id FROM conversations WHERE conversation_id = ?",
+                (conversation_id,),
+            ).fetchone()
+            if row:
+                conn.execute(
+                    "UPDATE conversations SET messages = ?, trace = ?, updated_at = ? WHERE conversation_id = ?",
+                    (json.dumps(messages, ensure_ascii=False), json.dumps(trace, ensure_ascii=False), now, conversation_id),
+                )
+            else:
+                conn.execute(
+                    "INSERT INTO conversations (user_id, conversation_id, title, messages, trace, created_at, updated_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (user_id, conversation_id, title, json.dumps(messages, ensure_ascii=False), json.dumps(trace, ensure_ascii=False), now, now),
+                )
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def list_conversations(user_id: int) -> list:
+    conn = _connect()
+    try:
+        rows = conn.execute(
+            "SELECT conversation_id, title, created_at, updated_at, messages FROM conversations "
+            "WHERE user_id = ? ORDER BY updated_at DESC LIMIT 100",
+            (user_id,),
+        ).fetchall()
+        out = []
+        for row in rows:
+            messages = json.loads(row["messages"] or "[]")
+            out.append(
+                {
+                    "conversation_id": row["conversation_id"],
+                    "title": row["title"],
+                    "created_at": row["created_at"],
+                    "updated_at": row["updated_at"],
+                    "message_count": len(messages),
+                }
+            )
+        return out
+    finally:
+        conn.close()
+
+
+def get_conversation(user_id: int, conversation_id: str):
+    conn = _connect()
+    try:
+        row = conn.execute(
+            "SELECT * FROM conversations WHERE user_id = ? AND conversation_id = ?",
+            (user_id, conversation_id),
+        ).fetchone()
+        if not row:
+            return None
+        return {
+            "conversation_id": row["conversation_id"],
+            "title": row["title"],
+            "messages": json.loads(row["messages"] or "[]"),
+            "trace": json.loads(row["trace"] or "{}"),
+            "created_at": row["created_at"],
+            "updated_at": row["updated_at"],
+        }
+    finally:
+        conn.close()
+
+
+def delete_conversation(user_id: int, conversation_id: str) -> bool:
+    with DB_LOCK:
+        conn = _connect()
+        try:
+            cur = conn.execute(
+                "DELETE FROM conversations WHERE user_id = ? AND conversation_id = ?",
+                (user_id, conversation_id),
+            )
+            conn.commit()
+            return cur.rowcount > 0
+        finally:
+            conn.close()
+
+
+def ensure_admin(username: str) -> None:
+    if not username:
+        return
+    with DB_LOCK:
+        conn = _connect()
+        try:
+            row = conn.execute("SELECT id FROM users WHERE username = ?", (username,)).fetchone()
+            if row:
+                conn.execute("UPDATE users SET role = 'admin' WHERE id = ?", (row["id"],))
+                conn.commit()
+        finally:
+            conn.close()
+
+
+def count_users(search: str = "") -> int:
+    conn = _connect()
+    try:
+        if search:
+            row = conn.execute(
+                "SELECT COUNT(*) AS n FROM users WHERE username LIKE ? OR email LIKE ?",
+                (f"%{search}%", f"%{search}%"),
+            ).fetchone()
+        else:
+            row = conn.execute("SELECT COUNT(*) AS n FROM users").fetchone()
+        return row["n"]
+    finally:
+        conn.close()
+
+
+def list_users(search: str = "", limit: int = 50, offset: int = 0) -> list:
+    conn = _connect()
+    try:
+        base = """
+            SELECT u.*,
+                   (SELECT COUNT(*) FROM conversations c WHERE c.user_id = u.id) AS conversation_count,
+                   (SELECT MAX(c.updated_at) FROM conversations c WHERE c.user_id = u.id) AS last_active
+            FROM users u
+        """
+        if search:
+            rows = conn.execute(
+                base + " WHERE u.username LIKE ? OR u.email LIKE ? ORDER BY u.created_at DESC LIMIT ? OFFSET ?",
+                (f"%{search}%", f"%{search}%", limit, offset),
+            ).fetchall()
+        else:
+            rows = conn.execute(base + " ORDER BY u.created_at DESC LIMIT ? OFFSET ?", (limit, offset)).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def update_user_role(user_id: int, role: str) -> bool:
+    with DB_LOCK:
+        conn = _connect()
+        try:
+            cur = conn.execute("UPDATE users SET role = ? WHERE id = ?", (role, user_id))
+            conn.commit()
+            return cur.rowcount > 0
+        finally:
+            conn.close()
+
+
+def reset_user_password(user_id: int, password_hash: str) -> bool:
+    with DB_LOCK:
+        conn = _connect()
+        try:
+            cur = conn.execute("UPDATE users SET password_hash = ? WHERE id = ?", (password_hash, user_id))
+            conn.commit()
+            return cur.rowcount > 0
+        finally:
+            conn.close()
+
+
+def delete_user(user_id: int) -> bool:
+    with DB_LOCK:
+        conn = _connect()
+        try:
+            conn.execute("DELETE FROM conversations WHERE user_id = ?", (user_id,))
+            cur = conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+            conn.commit()
+            return cur.rowcount > 0
+        finally:
+            conn.close()
+
+
+def count_all_conversations(search: str = "") -> int:
+    conn = _connect()
+    try:
+        if search:
+            row = conn.execute(
+                """
+                SELECT COUNT(*) AS n FROM conversations c
+                LEFT JOIN users u ON u.id = c.user_id
+                WHERE c.title LIKE ? OR u.username LIKE ?
+                """,
+                (f"%{search}%", f"%{search}%"),
+            ).fetchone()
+        else:
+            row = conn.execute("SELECT COUNT(*) AS n FROM conversations").fetchone()
+        return row["n"]
+    finally:
+        conn.close()
+
+
+def list_all_conversations(search: str = "", limit: int = 50, offset: int = 0) -> list:
+    conn = _connect()
+    try:
+        base = """
+            SELECT c.conversation_id, c.title, c.messages, c.created_at, c.updated_at, u.username
+            FROM conversations c LEFT JOIN users u ON u.id = c.user_id
+        """
+        if search:
+            rows = conn.execute(
+                base + " WHERE c.title LIKE ? OR u.username LIKE ? ORDER BY c.updated_at DESC LIMIT ? OFFSET ?",
+                (f"%{search}%", f"%{search}%", limit, offset),
+            ).fetchall()
+        else:
+            rows = conn.execute(base + " ORDER BY c.updated_at DESC LIMIT ? OFFSET ?", (limit, offset)).fetchall()
+        out = []
+        for r in rows:
+            item = dict(r)
+            item["messages"] = json.loads(item["messages"] or "[]")
+            item["message_count"] = len(item["messages"])
+            out.append(item)
+        return out
+    finally:
+        conn.close()
+
+
+def get_any_conversation(conversation_id: str):
+    conn = _connect()
+    try:
+        row = conn.execute(
+            """
+            SELECT c.*, u.username
+            FROM conversations c LEFT JOIN users u ON u.id = c.user_id
+            WHERE c.conversation_id = ?
+            """,
+            (conversation_id,),
+        ).fetchone()
+        if not row:
+            return None
+        item = dict(row)
+        item["messages"] = json.loads(item["messages"] or "[]")
+        item["trace"] = json.loads(item["trace"] or "{}")
+        return item
+    finally:
+        conn.close()
+
+
+def delete_any_conversation(conversation_id: str) -> bool:
+    with DB_LOCK:
+        conn = _connect()
+        try:
+            cur = conn.execute("DELETE FROM conversations WHERE conversation_id = ?", (conversation_id,))
+            conn.commit()
+            return cur.rowcount > 0
+        finally:
+            conn.close()
+
+
+def create_announcement(title: str, content: str, status: str, created_by: int) -> dict:
+    now = time.time()
+    with DB_LOCK:
+        conn = _connect()
+        try:
+            cur = conn.execute(
+                "INSERT INTO announcements (title, content, status, created_by, created_at, updated_at) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (title, content, status, created_by, now, now),
+            )
+            conn.commit()
+            ann_id = cur.lastrowid
+        finally:
+            conn.close()
+    return get_announcement(ann_id)
+
+
+def get_announcement(ann_id: int):
+    conn = _connect()
+    try:
+        row = conn.execute("SELECT * FROM announcements WHERE id = ?", (ann_id,)).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def list_announcements(status: str | None = None) -> list:
+    conn = _connect()
+    try:
+        if status:
+            rows = conn.execute(
+                "SELECT * FROM announcements WHERE status = ? ORDER BY updated_at DESC",
+                (status,),
+            ).fetchall()
+        else:
+            rows = conn.execute("SELECT * FROM announcements ORDER BY updated_at DESC").fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def update_announcement(ann_id: int, title: str, content: str, status: str) -> bool:
+    with DB_LOCK:
+        conn = _connect()
+        try:
+            cur = conn.execute(
+                "UPDATE announcements SET title = ?, content = ?, status = ?, updated_at = ? WHERE id = ?",
+                (title, content, status, time.time(), ann_id),
+            )
+            conn.commit()
+            return cur.rowcount > 0
+        finally:
+            conn.close()
+
+
+def delete_announcement(ann_id: int) -> bool:
+    with DB_LOCK:
+        conn = _connect()
+        try:
+            cur = conn.execute("DELETE FROM announcements WHERE id = ?", (ann_id,))
+            conn.commit()
+            return cur.rowcount > 0
+        finally:
+            conn.close()
+
+
+def count_announcements() -> int:
+    conn = _connect()
+    try:
+        row = conn.execute("SELECT COUNT(*) AS n FROM announcements").fetchone()
+        return row["n"]
+    finally:
+        conn.close()
+
+
+def add_audit_log(user_id, username: str, action: str, target_type: str = "", target_id: str = "", detail: str | None = None) -> None:
+    with DB_LOCK:
+        conn = _connect()
+        try:
+            conn.execute(
+                "INSERT INTO audit_logs (user_id, username, action, target_type, target_id, detail, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (user_id, username, action, target_type, target_id, detail, time.time()),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def list_audit_logs(limit: int = 100, offset: int = 0) -> list:
+    conn = _connect()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            (limit, offset),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def count_audit_logs() -> int:
+    conn = _connect()
+    try:
+        row = conn.execute("SELECT COUNT(*) AS n FROM audit_logs").fetchone()
+        return row["n"]
+    finally:
+        conn.close()

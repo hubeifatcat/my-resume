@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
+import { API_BASE_URL } from "../config.js";
 import useChat from "../hooks/useChat.js";
 import { useAuth } from "../hooks/useAuth.jsx";
 
@@ -85,6 +86,14 @@ export default function WorkbenchPage() {
   const [activeNav, setActiveNav] = useState("home");
   const [activeRole, setActiveRole] = useState("项目经理助手");
   const [temperature, setTemperature] = useState(0.4);
+  const [announcements, setAnnouncements] = useState([]);
+
+  useEffect(() => {
+    fetch(API_BASE_URL + "announcements")
+      .then((resp) => resp.json())
+      .then((data) => setAnnouncements(data.announcements || []))
+      .catch(() => setAnnouncements([]));
+  }, []);
 
   const today = new Date().toLocaleDateString("zh-CN", {
     year: "numeric",
@@ -236,6 +245,9 @@ export default function WorkbenchPage() {
             <span className="wb-nav-ico">设</span>
             <span>系统设置</span>
           </button>
+          {user?.role === "admin" && (
+            <NavLink to="/admin" className="wb-back">平台管理</NavLink>
+          )}
           <NavLink to="/" className="wb-back">返回站点</NavLink>
         </div>
       </aside>
@@ -326,10 +338,18 @@ export default function WorkbenchPage() {
             <h2>{activeNav === "settings" ? "系统设置" : moduleContent[activeNav].title}</h2>
             <p>{activeNav === "settings" ? "主题与偏好设置。" : moduleContent[activeNav].desc}</p>
             <div className="wb-module-list">
-              {(activeNav === "settings" ? ["主题：亮色 / 暗色", "通知偏好", "快捷键"] : moduleContent[activeNav].items).map((item) => (
-                <div className="wb-module-item" key={item}>
-                  <span className="wb-quick-ico">{item.slice(0, 1)}</span>
-                  <strong>{item}</strong>
+              {(activeNav === "settings"
+                ? ["主题：亮色 / 暗色", "通知偏好", "快捷键"]
+                : activeNav === "notice" && announcements.length
+                  ? announcements
+                  : moduleContent[activeNav].items
+              ).map((item) => (
+                <div className="wb-module-item" key={item.id ?? item}>
+                  <span className="wb-quick-ico">{(item.title || item).slice(0, 1)}</span>
+                  <div>
+                    <strong>{item.title || item}</strong>
+                    {item.content && <span>{item.content}</span>}
+                  </div>
                 </div>
               ))}
             </div>

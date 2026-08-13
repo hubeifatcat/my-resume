@@ -17,6 +17,11 @@ def chunk_text(text: str, size: int = 500, overlap: int = 60) -> list[str]:
 
 
 async def main() -> None:
+    count = await ingest_all()
+    print(f"INGEST_OK docs={count}")
+
+
+async def ingest_all() -> int:
     await ensure_collection()
     docs = []
     doc_id = 0
@@ -25,7 +30,7 @@ async def main() -> None:
             docs.append({"id": doc_id, "text": chunk, "source": seed["source"]})
             doc_id += 1
     await upsert_documents(docs)
-    print(f"INGEST_OK docs={len(docs)}")
+    return len(docs)
 
 
 if __name__ == "__main__":

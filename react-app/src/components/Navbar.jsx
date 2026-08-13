@@ -37,6 +37,17 @@ export default function Navbar() {
               </NavLink>
             </li>
           ))}
+          {user?.role === "admin" && (
+            <li>
+              <NavLink
+                to="/admin"
+                className={isActive("/admin") ? "active" : ""}
+                onClick={() => setOpen(false)}
+              >
+                管理
+              </NavLink>
+            </li>
+          )}
         </ul>
         <div className="nav-actions">
           {user ? (

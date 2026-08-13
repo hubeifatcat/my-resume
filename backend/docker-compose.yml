@@ -23,6 +23,8 @@ services:
     networks:
       - backend-net
       - hermes-net
+    volumes:
+      - backend_data:/app/data
     depends_on:
       - qdrant
 
@@ -35,3 +37,4 @@ networks:
 
 volumes:
   qdrant_data:
+  backend_data:

@@ -6,6 +6,7 @@ import HomePage from "./pages/HomePage.jsx";
 import DemoPage from "./pages/DemoPage.jsx";
 import ResumePage from "./pages/ResumePage.jsx";
 import WorkbenchPage from "./pages/WorkbenchPage.jsx";
+import AdminPage from "./pages/AdminPage.jsx";
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
           <Route path="/demo" element={<DemoPage />} />
           <Route path="/resume" element={<ResumePage />} />
           <Route path="/workbench" element={<WorkbenchPage />} />
+          <Route path="/admin" element={<AdminPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <AuthModal />
