@@ -10,6 +10,18 @@ export function clearToken() {
   localStorage.removeItem("ma_token");
 }
 
+export function getRefreshToken() {
+  return localStorage.getItem("ma_refresh_token");
+}
+
+export function setRefreshToken(token) {
+  localStorage.setItem("ma_refresh_token", token);
+}
+
+export function clearRefreshToken() {
+  localStorage.removeItem("ma_refresh_token");
+}
+
 export function getUser() {
   try {
     return JSON.parse(localStorage.getItem("ma_user"));

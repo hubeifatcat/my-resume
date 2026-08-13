@@ -42,6 +42,9 @@ def init_db():
                 email TEXT,
                 password_hash TEXT NOT NULL,
                 role TEXT NOT NULL DEFAULT 'user',
+                failed_attempts INTEGER NOT NULL DEFAULT 0,
+                locked_until REAL,
+                token_version INTEGER NOT NULL DEFAULT 0,
                 created_at REAL NOT NULL
             )
             """
@@ -87,9 +90,27 @@ def init_db():
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS refresh_tokens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                token_hash TEXT NOT NULL UNIQUE,
+                expires_at REAL NOT NULL,
+                revoked INTEGER NOT NULL DEFAULT 0,
+                created_at REAL NOT NULL
+            )
+            """
+        )
         cols = [row["name"] for row in conn.execute("PRAGMA table_info(users)")]
         if "role" not in cols:
             conn.execute("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'")
+        if "failed_attempts" not in cols:
+            conn.execute("ALTER TABLE users ADD COLUMN failed_attempts INTEGER NOT NULL DEFAULT 0")
+        if "locked_until" not in cols:
+            conn.execute("ALTER TABLE users ADD COLUMN locked_until REAL")
+        if "token_version" not in cols:
+            conn.execute("ALTER TABLE users ADD COLUMN token_version INTEGER NOT NULL DEFAULT 0")
         conn.commit()
         conn.close()
 
@@ -481,3 +502,108 @@ def count_audit_logs() -> int:
         return row["n"]
     finally:
         conn.close()
+
+
+def update_login_failure(user_id: int) -> int:
+    with DB_LOCK:
+        conn = _connect()
+        try:
+            conn.execute("UPDATE users SET failed_attempts = failed_attempts + 1 WHERE id = ?", (user_id,))
+            row = conn.execute("SELECT failed_attempts FROM users WHERE id = ?", (user_id,)).fetchone()
+            conn.commit()
+            return row["failed_attempts"] if row else 0
+        finally:
+            conn.close()
+
+
+def reset_login_failures(user_id: int) -> None:
+    with DB_LOCK:
+        conn = _connect()
+        try:
+            conn.execute(
+                "UPDATE users SET failed_attempts = 0, locked_until = NULL WHERE id = ?",
+                (user_id,),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def lock_user(user_id: int, until: float) -> None:
+    with DB_LOCK:
+        conn = _connect()
+        try:
+            conn.execute(
+                "UPDATE users SET locked_until = ?, failed_attempts = 0 WHERE id = ?",
+                (until, user_id),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def bump_token_version(user_id: int) -> None:
+    with DB_LOCK:
+        conn = _connect()
+        try:
+            conn.execute(
+                "UPDATE users SET token_version = token_version + 1 WHERE id = ?",
+                (user_id,),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def save_refresh_token(user_id: int, token_hash: str, expires_at: float) -> None:
+    with DB_LOCK:
+        conn = _connect()
+        try:
+            conn.execute(
+                "INSERT INTO refresh_tokens (user_id, token_hash, expires_at, revoked, created_at) "
+                "VALUES (?, ?, ?, 0, ?)",
+                (user_id, token_hash, expires_at, time.time()),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def get_refresh_token(token_hash: str):
+    conn = _connect()
+    try:
+        row = conn.execute(
+            "SELECT * FROM refresh_tokens WHERE token_hash = ?",
+            (token_hash,),
+        ).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def revoke_refresh_token(token_hash: str) -> bool:
+    with DB_LOCK:
+        conn = _connect()
+        try:
+            cur = conn.execute(
+                "UPDATE refresh_tokens SET revoked = 1 WHERE token_hash = ? AND revoked = 0",
+                (token_hash,),
+            )
+            conn.commit()
+            return cur.rowcount > 0
+        finally:
+            conn.close()
+
+
+def revoke_user_refresh_tokens(user_id: int) -> int:
+    with DB_LOCK:
+        conn = _connect()
+        try:
+            cur = conn.execute(
+                "UPDATE refresh_tokens SET revoked = 1 WHERE user_id = ? AND revoked = 0",
+                (user_id,),
+            )
+            conn.commit()
+            return cur.rowcount
+        finally:
+            conn.close()

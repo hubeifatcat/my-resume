@@ -1,14 +1,22 @@
+import asyncio
+import hashlib
 import json
+import logging
 import os
+import re
 import time
 import uuid
 
-from fastapi import Depends, FastAPI, HTTPException
+from datetime import datetime, timezone
+
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from .agents import AGENT_META
 from .auth import (
-    create_token,
+    create_access_token,
+    create_refresh_token,
     get_current_admin,
     get_current_user,
     get_current_user_optional,
@@ -17,6 +25,7 @@ from .auth import (
 )
 from .db import (
     add_audit_log,
+    bump_token_version,
     count_all_conversations,
     count_announcements,
     count_audit_logs,
@@ -31,6 +40,8 @@ from .db import (
     get_announcement,
     get_any_conversation,
     get_conversation,
+    get_refresh_token,
+    get_user_by_id,
     get_user_by_username,
     init_db,
     list_all_conversations,
@@ -38,9 +49,15 @@ from .db import (
     list_audit_logs,
     list_conversations,
     list_users,
+    lock_user,
+    reset_login_failures,
     reset_user_password,
+    revoke_refresh_token,
+    revoke_user_refresh_tokens,
     save_conversation,
+    save_refresh_token,
     update_announcement,
+    update_login_failure,
     update_user_role,
 )
 from .harness import harness
@@ -54,6 +71,8 @@ from .models import (
     UserOut,
 )
 from .rag import COLLECTION, get_client
+from .ratelimit import limiter
+from .safety import SAFETY_ANSWER, check_input
 from .seed import SEED_DOCUMENTS
 from .trace import trace_store
 
@@ -61,6 +80,49 @@ init_db()
 ensure_admin(os.getenv("ADMIN_USERNAME", ""))
 
 app = FastAPI(title="Wuxing Multi-Agent API", version="2.0.0")
+
+logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
+access_logger = logging.getLogger("wuxing.access")
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data:; connect-src 'self' https://api.liumingqing.com; "
+            "font-src 'self' data:; frame-ancestors 'none'"
+        )
+        return response
+
+
+class RequestLogMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        start = time.time()
+        response = await call_next(request)
+        latency_ms = int((time.time() - start) * 1000)
+        ip = (
+            request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+            or (request.client.host if request.client else "")
+        )
+        access_logger.info(
+            json.dumps(
+                {
+                    "ts": datetime.now(timezone.utc).isoformat(),
+                    "ip": ip,
+                    "method": request.method,
+                    "path": request.url.path,
+                    "status": response.status_code,
+                    "latency_ms": latency_ms,
+                },
+                ensure_ascii=False,
+            )
+        )
+        return response
 
 origins = [
     o.strip()
@@ -77,18 +139,20 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# 极简内存限流：演示站够用，后续可换 Redis。
-_rate = {}
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RequestLogMiddleware)
 
 
 def _rate_limit(key: str, limit: int, window: int = 60):
-    now = time.time()
-    bucket = _rate.setdefault(key, [])
-    bucket[:] = [t for t in bucket if now - t < window]
-    if len(bucket) >= limit:
+    if not limiter.check(key, limit, window):
         raise HTTPException(status_code=429, detail="too many requests")
-    bucket.append(now)
+
+
+def _validate_password(password: str):
+    if len(password) < 8:
+        raise HTTPException(status_code=400, detail="password must be at least 8 characters")
+    if not re.search(r"[A-Za-z]", password) or not re.search(r"\d", password):
+        raise HTTPException(status_code=400, detail="password must contain both letters and digits")
 
 
 @app.get("/api/health")
@@ -112,22 +176,58 @@ def register(req: RegisterRequest):
     username = req.username.strip()
     if not username.isalnum() and "_" not in username:
         raise HTTPException(status_code=400, detail="username only allows letters, digits and underscore")
+    _validate_password(req.password)
     if get_user_by_username(username):
         raise HTTPException(status_code=400, detail="username already exists")
     user = create_user(username, req.email, hash_password(req.password))
-    token = create_token(user["id"], user["username"], user.get("role", "user"))
-    return {"token": token, "user": UserOut(**user)}
+    access_token = create_access_token(user)
+    refresh_token, refresh_hash = create_refresh_token(user)
+    expires_in = int(os.getenv("JWT_ACCESS_EXPIRE_SECONDS", "3600"))
+    save_refresh_token(
+        user["id"],
+        refresh_hash,
+        time.time() + int(os.getenv("JWT_EXPIRE_SECONDS", "604800")),
+    )
+    _audit(user, "register", "users", str(user["id"]), {"username": username})
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "expires_in": expires_in,
+        "user": UserOut(**user),
+    }
 
 
 @app.post("/api/auth/login")
 def login(req: LoginRequest):
     _rate_limit("login:" + req.username, limit=10)
     user = get_user_by_username(req.username.strip())
+    if user and user.get("locked_until") and time.time() < user["locked_until"]:
+        remain = int(user["locked_until"] - time.time())
+        raise HTTPException(status_code=429, detail=f"account locked, retry in {remain}s")
     if not user or not verify_password(req.password, user["password_hash"]):
+        if user:
+            attempts = update_login_failure(user["id"])
+            if attempts >= int(os.getenv("LOGIN_MAX_ATTEMPTS", "5")):
+                lock_user(user["id"], time.time() + int(os.getenv("LOGIN_LOCK_SECONDS", "900")))
+                _audit(user, "login_locked", "users", str(user["id"]))
+        _audit(user or {"id": None, "username": req.username}, "login_failed", "users")
         raise HTTPException(status_code=401, detail="invalid username or password")
-    token = create_token(user["id"], user["username"], user.get("role", "user"))
+    reset_login_failures(user["id"])
+    access_token = create_access_token(user)
+    refresh_token, refresh_hash = create_refresh_token(user)
+    expires_in = int(os.getenv("JWT_ACCESS_EXPIRE_SECONDS", "3600"))
+    save_refresh_token(
+        user["id"],
+        refresh_hash,
+        time.time() + int(os.getenv("JWT_EXPIRE_SECONDS", "604800")),
+    )
+    _audit(user, "login", "users", str(user["id"]))
     return {
-        "token": token,
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "expires_in": expires_in,
         "user": {"id": user["id"], "username": user["username"], "email": user["email"] or "", "role": user.get("role", "user")},
     }
 
@@ -139,6 +239,44 @@ def me(user: dict = Depends(get_current_user)):
         username=user["username"],
         role=user.get("role", "user"),
     )
+
+
+@app.post("/api/auth/refresh")
+def refresh(body: dict):
+    raw = (body.get("refresh_token") or "").strip()
+    if not raw:
+        raise HTTPException(status_code=401, detail="refresh token required")
+    token_hash = hashlib.sha256(raw.encode("utf-8")).hexdigest()
+    stored = get_refresh_token(token_hash)
+    if not stored or stored.get("revoked") or stored.get("expires_at", 0) < time.time():
+        raise HTTPException(status_code=401, detail="invalid refresh token")
+    user = get_user_by_id(stored["user_id"])
+    if not user:
+        raise HTTPException(status_code=401, detail="user not found")
+    revoke_refresh_token(token_hash)
+    new_access = create_access_token(user)
+    new_refresh, new_hash = create_refresh_token(user)
+    save_refresh_token(
+        user["id"],
+        new_hash,
+        time.time() + int(os.getenv("JWT_EXPIRE_SECONDS", "604800")),
+    )
+    _audit(user, "refresh", "users", str(user["id"]))
+    return {
+        "access_token": new_access,
+        "refresh_token": new_refresh,
+        "token_type": "bearer",
+        "expires_in": int(os.getenv("JWT_ACCESS_EXPIRE_SECONDS", "3600")),
+    }
+
+
+@app.post("/api/auth/logout")
+def logout(body: dict):
+    raw = (body.get("refresh_token") or "").strip()
+    if raw:
+        token_hash = hashlib.sha256(raw.encode("utf-8")).hexdigest()
+        revoke_refresh_token(token_hash)
+    return {"ok": True}
 
 
 @app.get("/api/trace/{conversation_id}")
@@ -172,19 +310,32 @@ def conversation_delete(conversation_id: str, user: dict = Depends(get_current_u
 
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest, user: dict | None = Depends(get_current_user_optional)):
-    _rate_limit(f"chat:{user.get('id') if user else 'anonymous'}", limit=20)
+    ok = await asyncio.to_thread(limiter.check, f"chat:{user.get('id') if user else 'anonymous'}", 20, 60)
+    if not ok:
+        raise HTTPException(status_code=429, detail="too many requests")
     conv_id = req.conversation_id or uuid.uuid4().hex
-    try:
-        result = await harness.handle(req.message, req.skills, req.tools, conv_id)
-    except Exception:
+    if check_input(req.message):
         result = {
-            "answer": answer_question(req.message),
+            "answer": SAFETY_ANSWER,
             "conversation_id": conv_id,
-            "mode": "knowledge",
+            "mode": "safety",
             "agents": [],
             "trace": {},
             "blackboard": {},
         }
+        _audit(user or {"id": None, "username": "anonymous"}, "chat_blocked", "chat", conv_id)
+    else:
+        try:
+            result = await harness.handle(req.message, req.skills, req.tools, conv_id)
+        except Exception:
+            result = {
+                "answer": answer_question(req.message),
+                "conversation_id": conv_id,
+                "mode": "knowledge",
+                "agents": [],
+                "trace": {},
+                "blackboard": {},
+            }
 
     if user:
         existing = get_conversation(user["id"], conv_id)
@@ -199,6 +350,14 @@ async def chat(req: ChatRequest, user: dict | None = Depends(get_current_user_op
             messages,
             result.get("trace", {}),
         )
+
+    _audit(
+        user or {"id": None, "username": "anonymous"},
+        "chat",
+        "chat",
+        conv_id,
+        {"mode": result.get("mode", "")},
+    )
 
     return ChatResponse(
         answer=result["answer"],
@@ -215,10 +374,10 @@ def public_announcements():
     return {"announcements": list_announcements("published")}
 
 
-def _audit(admin: dict, action: str, target_type: str = "", target_id: str = "", detail=None):
+def _audit(user: dict, action: str, target_type: str = "", target_id: str = "", detail=None):
     add_audit_log(
-        admin.get("id"),
-        admin.get("username", ""),
+        user.get("id"),
+        user.get("username", ""),
         action,
         target_type,
         target_id,
@@ -263,10 +422,11 @@ def admin_user_role(user_id: int, body: dict, admin: dict = Depends(get_current_
 @app.post("/api/admin/users/{user_id}/reset-password")
 def admin_reset_password(user_id: int, body: dict, admin: dict = Depends(get_current_admin)):
     password = (body.get("password") or "").strip()
-    if len(password) < 8:
-        raise HTTPException(status_code=400, detail="password must be at least 8 characters")
+    _validate_password(password)
     if not reset_user_password(user_id, hash_password(password)):
         raise HTTPException(status_code=404, detail="user not found")
+    bump_token_version(user_id)
+    revoke_user_refresh_tokens(user_id)
     _audit(admin, "reset_user_password", "users", str(user_id))
     return {"ok": True, "user_id": user_id}
 
@@ -275,6 +435,7 @@ def admin_reset_password(user_id: int, body: dict, admin: dict = Depends(get_cur
 def admin_delete_user(user_id: int, admin: dict = Depends(get_current_admin)):
     if user_id == admin["id"]:
         raise HTTPException(status_code=400, detail="cannot delete yourself")
+    revoke_user_refresh_tokens(user_id)
     if not delete_user(user_id):
         raise HTTPException(status_code=404, detail="user not found")
     _audit(admin, "delete_user", "users", str(user_id))
@@ -418,6 +579,11 @@ def admin_system(admin: dict = Depends(get_current_admin)):
         "RAG_ENABLED",
         "EMBEDDING_PROVIDER",
         "JWT_EXPIRE_SECONDS",
+        "JWT_ACCESS_EXPIRE_SECONDS",
+        "LOGIN_MAX_ATTEMPTS",
+        "LOGIN_LOCK_SECONDS",
+        "ADMIN_ALLOWED_IPS",
+        "REDIS_URL",
         "ALLOWED_ORIGINS",
     ]
     _audit(admin, "view_system", "system")

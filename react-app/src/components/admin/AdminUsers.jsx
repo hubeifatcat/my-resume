@@ -39,7 +39,7 @@ export default function AdminUsers() {
   }
 
   async function resetPwd(user) {
-    const password = window.prompt(`为 ${user.username} 设置新密码（至少 8 位）`);
+    const password = window.prompt(`为 ${user.username} 设置新密码（至少 8 位，含字母和数字）`);
     if (!password) return;
     try {
       await resetUserPassword(user.id, password);

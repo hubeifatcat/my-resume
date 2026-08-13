@@ -18,6 +18,13 @@ services:
     env_file:
       - .env
     restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - "no-new-privileges:true"
+    read_only: true
+    tmpfs:
+      - /tmp
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
@@ -25,8 +32,17 @@ services:
       - hermes-net
     volumes:
       - backend_data:/app/data
+      - /root/wuxing-backend/backups:/backups
     depends_on:
       - qdrant
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    container_name: wuxing-redis
+    restart: unless-stopped
+    networks:
+      - backend-net
 
 networks:
   backend-net:

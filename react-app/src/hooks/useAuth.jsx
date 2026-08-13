@@ -1,6 +1,16 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { apiFetch } from "../api/client.js";
-import { clearToken, clearUser, getToken, getUser, setToken, setUser } from "../lib/storage.js";
+import {
+  clearRefreshToken,
+  clearToken,
+  clearUser,
+  getRefreshToken,
+  getToken,
+  getUser,
+  setRefreshToken,
+  setToken,
+  setUser,
+} from "../lib/storage.js";
 
 const AuthContext = createContext(null);
 
@@ -25,6 +35,12 @@ export function AuthProvider({ children }) {
       }
     }
     validate();
+
+    function onExpired() {
+      setUserState(null);
+    }
+    window.addEventListener("auth:expired", onExpired);
+    return () => window.removeEventListener("auth:expired", onExpired);
   }, []);
 
   const authenticate = useCallback(async (mode, payload) => {
@@ -37,15 +53,28 @@ export function AuthProvider({ children }) {
     if (!resp.ok) {
       throw new Error(data.detail || "操作失败");
     }
-    setToken(data.token);
+    setToken(data.access_token);
+    setRefreshToken(data.refresh_token);
     setUser(data.user);
     setUserState(data.user);
     setAuthOpen(false);
     return data.user;
   }, []);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    const refreshToken = getRefreshToken();
+    if (refreshToken) {
+      try {
+        await apiFetch("auth/logout", {
+          method: "POST",
+          body: JSON.stringify({ refresh_token: refreshToken }),
+        });
+      } catch (e) {
+        /* token 无效也继续本地登出 */
+      }
+    }
     clearToken();
+    clearRefreshToken();
     clearUser();
     setUserState(null);
   }, []);

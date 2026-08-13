@@ -20,6 +20,10 @@ export default function AuthModal() {
   async function submit(e) {
     e.preventDefault();
     setError("");
+    if (mode === "register" && (password.length < 8 || !/[A-Za-z]/.test(password) || !/\d/.test(password))) {
+      setError("密码至少 8 位，且同时包含字母和数字");
+      return;
+    }
     setBusy(true);
     try {
       const payload = { username, password };
@@ -59,7 +63,7 @@ export default function AuthModal() {
           )}
           <label>
             密码
-            <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" required minLength="8" placeholder="至少 8 位" />
+            <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" required minLength="8" placeholder="至少 8 位，含字母和数字" />
           </label>
           {error && <div className="ma-modal-error">{error}</div>}
           <button className="ma-btn-primary" disabled={busy} type="submit">
