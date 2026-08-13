@@ -1,23 +1,24 @@
-import { useEffect, useState } from "react";
-import Home from "./Home.jsx";
-import Chat from "./Chat.jsx";
-
-function getRoute() {
-  return window.location.hash.startsWith("#/chat") ? "chat" : "home";
-}
+import { HashRouter, Navigate, Route, Routes } from "react-router-dom";
+import { AuthProvider } from "./hooks/useAuth.jsx";
+import ScrollToTop from "./components/ScrollToTop.jsx";
+import AuthModal from "./components/AuthModal.jsx";
+import HomePage from "./pages/HomePage.jsx";
+import DemoPage from "./pages/DemoPage.jsx";
+import ResumePage from "./pages/ResumePage.jsx";
 
 export default function App() {
-  const [route, setRoute] = useState(getRoute);
-
-  useEffect(() => {
-    const onHash = () => setRoute(getRoute());
-    window.addEventListener("hashchange", onHash);
-    return () => window.removeEventListener("hashchange", onHash);
-  }, []);
-
-  return route === "chat" ? (
-    <Chat onHome={() => { window.location.hash = "#/"; }} />
-  ) : (
-    <Home onChat={() => { window.location.hash = "#/chat"; }} />
+  return (
+    <AuthProvider>
+      <HashRouter>
+        <ScrollToTop />
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/demo" element={<DemoPage />} />
+          <Route path="/resume" element={<ResumePage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+        <AuthModal />
+      </HashRouter>
+    </AuthProvider>
   );
 }
