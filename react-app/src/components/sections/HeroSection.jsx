@@ -31,7 +31,7 @@ export default function HeroSection() {
             <span className="ma-live-dot"></span>
             <img
               className="ma-shot"
-              src="/assets/screenshots/demo.png"
+              src="assets/screenshots/demo.png"
               alt="多智能体 Demo 界面截图"
               loading="lazy"
             />
