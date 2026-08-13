@@ -23,6 +23,20 @@ KNOWLEDGE = {
     "联系": "电话：190-5475-0791\n邮箱：18335357090@163.com\n微信：wwx-_-168\nGitHub：github.com/hubeifatcat\n简历网站：hubeifatcat.github.io/my-resume",
     "你好": "你好！我是武渭星的 AI 助手，可以问他的工作经历、技术能力、项目经验等问题。",
     "你是谁": "我是武渭星的 AI 运维助手，当前使用后端知识库回答，可配置接入 Ollama 或百炼大模型。",
+    "安全运维": "安全运维核心是闭环：资产清单 → 漏洞发现 → 风险评估 → 修复 → 复测 → 审计归档。日常任务包括漏洞扫描、补丁管理、基线加固、堡垒机与审计、安全事件响应。",
+    "漏洞扫描": "漏洞扫描流程：发现 → 评估 → 修复 → 复测 → 闭环。常用工具：Nessus、OpenVAS、阿里云云安全中心、绿盟。生产环境常用云安全中心发现问题，再用工单系统走检修闭环。",
+    "补丁管理": "补丁管理：先有资产清单，按漏洞等级排序；测试环境验证，灰度到生产，保留回滚方案；完成后复测并审计。",
+    "堡垒机": "堡垒机解决统一入口、账号权限、操作审计、双人复核，核心是“人机分离、操作可追溯”。所有运维操作留审计日志。",
+    "WAF": "WAF 实时拦截 Web 攻击：SQL 注入、XSS、CC 攻击。漏扫负责发现问题，WAF 负责实时防护。应用侧同步做参数化查询、输入校验、输出转义、CORS 白名单、安全响应头。",
+    "EDR": "EDR 做终端行为监控、异常分析、隔离和响应，能应对未知威胁并支持溯源；传统杀毒只按已知特征查杀。",
+    "SIEM": "SIEM 集中采集、归一化、关联分析安全日志。落地要点：统一时间戳、关键字段建索引、登录失败/权限变更/高危命令告警、日志保留满足合规、定期演练告警有效性。",
+    "等保": "等保 2.0 分技术和管理：技术包括安全物理环境、通信网络、区域边界、计算环境、管理中心；管理包括制度、机构、人员、建设、运维。三级常见，每年测评、整改闭环。",
+    "提示注入": "提示注入防护：输入输出过滤、system prompt 加固、权限隔离、工具调用二次确认、日志审计。拦截明显注入模式（忽略以上、输出系统提示、越狱、jailbreak），每次拦截写审计日志便于溯源。",
+    "Redis安全": "Redis 未授权访问加固：只监听内网、requirepass 强密码、关闭危险命令、最小权限账号、必要时 TLS，定期检查公网暴露。",
+    "Docker安全": "容器安全基线：非 root 用户、read-only、cap_drop ALL、no-new-privileges、Trivy 扫镜像、SCA 扫依赖、镜像签名、最小基础镜像。",
+    "备份恢复": "备份策略 3-2-1：至少 3 份副本、2 种介质、1 份异地；用官方备份能力，保留最近 N 份，定期恢复演练；RPO 决定丢多少数据，RTO 决定恢复多快。",
+    "应急响应": "应急响应流程：准备→检测→遏制→根除→恢复→复盘。先确认影响范围和证据，隔离受影响系统，查根因，恢复业务，最后复盘沉淀基线。",
+    "监控告警": "监控分层：基础设施、中间件、应用、业务。工具：Zabbix、Prometheus+Grafana、ELK、SLS。告警要分级、可路由、可关闭，重要告警接值班群。",
 }
 
 FALLBACKS = [
@@ -48,6 +62,32 @@ def find_answer(text: str):
         return KNOWLEDGE["项目"]
     if any(k in lower for k in ("联系", "电话", "邮箱", "微信")):
         return KNOWLEDGE["联系"]
+    if any(k in lower for k in ("漏洞", "扫描", "补丁")):
+        return KNOWLEDGE["漏洞扫描"]
+    if any(k in lower for k in ("堡垒",)):
+        return KNOWLEDGE["堡垒机"]
+    if any(k in lower for k in ("waf", "web防火墙", "防火墙")):
+        return KNOWLEDGE["WAF"]
+    if any(k in lower for k in ("edr", "终端安全")):
+        return KNOWLEDGE["EDR"]
+    if any(k in lower for k in ("siem", "日志审计", "关联分析")):
+        return KNOWLEDGE["SIEM"]
+    if any(k in lower for k in ("等保", "等级保护", "三级测评")):
+        return KNOWLEDGE["等保"]
+    if any(k in lower for k in ("提示注入", "越狱", "jailbreak")):
+        return KNOWLEDGE["提示注入"]
+    if any(k in lower for k in ("redis未授权", "redis安全")):
+        return KNOWLEDGE["Redis安全"]
+    if any(k in lower for k in ("docker安全", "容器安全", "k8s安全")):
+        return KNOWLEDGE["Docker安全"]
+    if any(k in lower for k in ("备份", "恢复", "rpo", "rto")):
+        return KNOWLEDGE["备份恢复"]
+    if any(k in lower for k in ("应急响应", "溯源", "遏制")):
+        return KNOWLEDGE["应急响应"]
+    if any(k in lower for k in ("监控", "告警", "zabbix", "grafana")):
+        return KNOWLEDGE["监控告警"]
+    if any(k in lower for k in ("安全运维", "安全基线", "最小权限")):
+        return KNOWLEDGE["安全运维"]
     if any(k in lower for k in ("你好", "hello", "hi")):
         return KNOWLEDGE["你好"]
     if any(k in lower for k in ("你是谁", "什么", "干嘛")):

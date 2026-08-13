@@ -1,4 +1,5 @@
 import asyncio
+import os
 
 from .rag import ensure_collection, upsert_documents
 from .seed import SEED_DOCUMENTS
@@ -22,14 +23,16 @@ async def main() -> None:
 
 
 async def ingest_all() -> int:
-    await ensure_collection()
+    provider = os.getenv("EMBEDDING_PROVIDER", "keyword").lower()
     docs = []
     doc_id = 0
     for seed in SEED_DOCUMENTS:
         for chunk in chunk_text(seed["text"]):
             docs.append({"id": doc_id, "text": chunk, "source": seed["source"]})
             doc_id += 1
-    await upsert_documents(docs)
+    if provider in ("dashscope", "fastembed"):
+        await ensure_collection()
+        await upsert_documents(docs)
     return len(docs)
 
 
