@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>智绘 · 视频创作画布</title>
+<style>
+  :root {
+    --bg: #f5f7fb;
+    --panel: #ffffff;
+    --line: #e2e8f0;
+    --text: #1e293b;
+    --muted: #64748b;
+    --blue: #2563eb;
+    --cyan: #0891b2;
+    --green: #059669;
+    --amber: #d97706;
+    --red: #dc2626;
+    --purple: #7c3aed;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Courier New", monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ---------- 顶栏 ---------- */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    flex-shrink: 0;
+    z-index: 20;
+  }
+  .toolbar .brand { display: flex; align-items: center; gap: 8px; font-weight: 800; margin-right: 8px; }
+  .toolbar .brand .mark {
+    width: 30px; height: 30px; border-radius: 9px;
+    background: linear-gradient(135deg, var(--blue), var(--cyan));
+    color: #fff; display: grid; place-items: center; font-size: 14px;
+  }
+  .toolbar .sep { width: 1px; height: 22px; background: var(--line); }
+  .btn {
+    border: 1px solid var(--line); background: #fff; color: var(--text);
+    border-radius: 8px; padding: 6px 14px; font-size: 13px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: all .15s ease;
+  }
+  .btn:hover { border-color: var(--blue); color: var(--blue); }
+  .btn.primary { background: linear-gradient(135deg, var(--blue), var(--cyan)); color: #fff; border: 0; font-weight: 600; }
+  .btn.primary:hover { opacity: .9; color: #fff; }
+  .btn.danger:hover { border-color: var(--red); color: var(--red); }
+  .toolbar .hint { margin-left: auto; color: var(--muted); font-size: 12px; }
+
+  /* ---------- 主布局 ---------- */
+  .layout { flex: 1; display: flex; min-height: 0; }
+
+  /* 左侧节点库 */
+  .library {
+    width: 220px; background: var(--panel); border-right: 1px solid var(--line);
+    padding: 14px; overflow-y: auto; flex-shrink: 0;
+  }
+  .library h3 { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+  .lib-item {
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+    margin-bottom: 8px; cursor: grab; background: #fff; font-size: 13px;
+    transition: all .15s ease; user-select: none;
+  }
+  .lib-item:hover { border-color: var(--blue); box-shadow: 0 3px 10px rgba(37,99,235,.10); transform: translateY(-1px); }
+  .lib-item:active { cursor: grabbing; }
+  .lib-item .li-tag { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 999px; margin-bottom: 4px; font-weight: 600; }
+  .lib-item small { display: block; color: var(--muted); font-size: 11px; margin-top: 3px; }
+
+  /* 画布容器 */
+  .canvas-wrap { flex: 1; position: relative; overflow: hidden; background: var(--bg); }
+  .canvas {
+    position: absolute; inset: 0;
+    transform-origin: 0 0;
+    background-color: #f8fafc;
+    background-image:
+      radial-gradient(circle, rgba(37,99,235,.08) 1px, transparent 1px),
+      radial-gradient(circle, rgba(37,99,235,.05) 1px, transparent 1px);
+    background-size: 24px 24px, 96px 96px;
+    background-position: 0 0, 12px 12px;
+  }
+  .world { position: absolute; top: 0; left: 0; width: 4000px; height: 3000px; }
+
+  /* 连线层 */
+  .links-layer { position: absolute; top: 0; left: 0; width: 4000px; height: 3000px; pointer-events: none; z-index: 1; }
+  .link { pointer-events: stroke; cursor: pointer; }
+  .link path { fill: none; stroke: #94a3b8; stroke-width: 2; transition: stroke .2s ease; }
+  .link:hover path { stroke: var(--blue); stroke-width: 2.5; }
+  .link.flow path { stroke: var(--green); stroke-dasharray: 8 6; animation: dashflow 0.6s linear infinite; }
+  .link.flow.done path { stroke: var(--green); stroke-dasharray: none; }
+  @keyframes dashflow { to { stroke-dashoffset: -14; } }
+
+  /* 节点 */
+  .node {
+    position: absolute; width: 210px; background: #fff;
+    border: 1.5px solid var(--line); border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(11,18,32,.06);
+    z-index: 2; user-select: none;
+    transition: box-shadow .15s ease, border-color .15s ease;
+  }
+  .node:hover { box-shadow: 0 6px 18px rgba(11,18,32,.10); }
+  .node.selected { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+  .node.running { border-color: var(--green); box-shadow: 0 0 0 3px rgba(5,150,105,.15); }
+  .node.done { border-color: rgba(5,150,105,.5); }
+  .node.error { border-color: var(--red); }
+  .node-head {
+    display: flex; align-items: center; gap: 8px; padding: 9px 12px;
+    border-bottom: 1px solid var(--line); border-radius: 11px 11px 0 0;
+    background: #f8fafc; cursor: move; font-size: 13px; font-weight: 700;
+  }
+  .node-head .n-icon {
+    width: 22px; height: 22px; border-radius: 7px; color: #fff;
+    display: grid; place-items: center; font-size: 12px; flex-shrink: 0;
+  }
+  .node-body { padding: 10px 12px; font-size: 12.5px; color: var(--ink-2, #334155); }
+  .node-body .n-status { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--muted); margin-top: 8px; }
+  .node-body .n-status .st-dot { width: 7px; height: 7px; border-radius: 50%; background: #cbd5e1; }
+  .node.running .n-status .st-dot { background: var(--green); animation: pulse 0.9s infinite; }
+  .node.done .n-status .st-dot { background: var(--green); }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(5,150,105,.4);} 50% { box-shadow: 0 0 0 5px rgba(5,150,105,0);} }
+
+  /* 端口 */
+  .port {
+    position: absolute; width: 13px; height: 13px; border-radius: 50%;
+    border: 2px solid #fff; box-shadow: 0 0 0 1.5px #94a3b8;
+    z-index: 5; cursor: crosshair; transition: all .15s ease;
+  }
+  .port:hover { box-shadow: 0 0 0 2px var(--blue); transform: scale(1.25); }
+  .port.out { right: -7px; top: 50%; background: var(--blue); }
+  .port.in { left: -7px; top: 50%; background: #fff; border-color: var(--blue); }
+
+  /* 节点内容：文本 / 图片 / 视频 / 模型 / 输出 */
+  .n-textarea {
+    width: 100%; border: 1px solid var(--line); border-radius: 8px;
+    padding: 8px; font-size: 12px; resize: vertical; min-height: 52px; font-family: inherit;
+  }
+  .n-textarea:focus { outline: none; border-color: var(--blue); }
+  .n-preview {
+    width: 100%; border: 1px solid var(--line); border-radius: 8px; overflow: hidden;
+    min-height: 80px; display: grid; place-items: center; background: #f8fafc; cursor: pointer;
+    color: var(--muted); font-size: 12px; position: relative;
+  }
+  .n-preview img, .n-preview video { width: 100%; display: block; max-height: 160px; object-fit: cover; }
+  .n-preview .up-hint { text-align: center; padding: 16px 8px; }
+  .n-preview .up-hint b { display: block; font-size: 13px; color: var(--blue); margin-bottom: 4px; }
+  .n-upload { display: none; }
+  .n-model {
+    border: 1px dashed var(--line); border-radius: 8px; padding: 10px;
+    text-align: center; font-size: 12px; background: #f8fafc;
+  }
+  .n-model b { display: block; color: var(--blue); font-size: 13px; margin-bottom: 2px; }
+  .n-model span { color: var(--muted); font-size: 11px; }
+  .n-out {
+    border: 1px solid var(--line); border-radius: 8px; padding: 8px;
+    min-height: 60px; display: grid; place-items: center; color: var(--muted); font-size: 12px;
+    background: #f8fafc; text-align: center;
+  }
+  .n-out .out-ok { color: var(--green); font-weight: 600; }
+
+  /* 删除节点按钮 */
+  .node-del {
+    position: absolute; top: 6px; right: 6px; width: 20px; height: 20px;
+    border-radius: 50%; border: 0; background: #e2e8f0; color: var(--muted);
+    font-size: 12px; cursor: pointer; display: none; place-items: center; z-index: 6;
+  }
+  .node:hover .node-del, .node.selected .node-del { display: grid; }
+  .node-del:hover { background: var(--red); color: #fff; }
+
+  /* 底部状态栏 */
+  .statusbar {
+    display: flex; align-items: center; gap: 14px; padding: 6px 16px;
+    background: var(--panel); border-top: 1px solid var(--line);
+    color: var(--muted); font-size: 12px; flex-shrink: 0;
+  }
+  .statusbar .log { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* 运行中遮罩提示 */
+  .run-banner {
+    position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+    background: rgba(5,150,105,.95); color: #fff; padding: 8px 18px;
+    border-radius: 999px; font-size: 13px; font-weight: 600; z-index: 30;
+    box-shadow: 0 6px 20px rgba(5,150,105,.3); display: none;
+  }
+</style>
+</head>
+<body>
+
+<!-- 顶栏 -->
+<div class="toolbar">
+  <div class="brand"><span class="mark">绘</span>智绘 · 视频创作画布</div>
+  <div class="sep"></div>
+  <button class="btn" onclick="loadDemo()">🔄 示例工作流</button>
+  <button class="btn" onclick="runFlow()">▶ 运行</button>
+  <button class="btn" onclick="clearAll()">🗑 清空</button>
+  <span class="hint">拖拽节点移动 · 从蓝色端口拖到白端口连线 · 点预览区上传素材 · 滚轮缩放 · 空白拖拽平移</span>
+</div>
+
+<div class="layout">
+  <!-- 节点库 -->
+  <aside class="library">
+    <h3>节点库（点击添加）</h3>
+    <div class="lib-item" onclick="addNode('prompt')"><span class="li-tag" style="background:rgba(37,99,235,.1);color:var(--blue)">📝 提示词</span>文本输入<small>描述画面 / 分镜脚本</small></div>
+    <div class="lib-item" onclick="addNode('image')"><span class="li-tag" style="background:rgba(124,58,237,.1);color:var(--purple)">🖼 图片</span>素材上传<small>上传参考图 / 关键帧</small></div>
+    <div class="lib-item" onclick="addNode('video')"><span class="li-tag" style="background:rgba(217,119,6,.1);color:var(--amber)">🎬 视频</span>素材上传<small>上传片段 / 尾帧</small></div>
+    <div class="lib-item" onclick="addNode('seedance')"><span class="li-tag" style="background:rgba(8,145,178,.1);color:var(--cyan)">🎥 Seedance 2.0</span>视频生成模型<small>文生视频 / 图生视频</small></div>
+    <div class="lib-item" onclick="addNode('minimax')"><span class="li-tag" style="background:rgba(5,150,105,.1);color:var(--green)">🎞 MiniMax H3</span>视频生成模型<small>首尾帧 / 图生视频</small></div>
+    <div class="lib-item" onclick="addNode('output')"><span class="li-tag" style="background:rgba(100,116,139,.15);color:var(--muted)">📺 输出</span>成品预览<small>合成结果展示</small></div>
+  </aside>
+
+  <!-- 画布 -->
+  <div class="canvas-wrap" id="canvasWrap">
+    <div class="run-banner" id="runBanner">⏳ 正在执行工作流…</div>
+    <div class="canvas" id="canvas">
+      <svg class="links-layer" id="linksLayer"></svg>
+      <div class="world" id="world"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 底部状态栏 -->
+<div class="statusbar">
+  <span id="nodeCount">0 个节点</span>
+  <span id="linkCount">0 条连线</span>
+  <span class="log" id="logText">就绪。</span>
+</div>
+
+<script>
+// ================= 状态 =================
+let nodes = [];
+let links = [];
+let nextId = 1;
+let view = { x: 60, y: 60, scale: 1 };
+let selectedId = null;
+let dragging = null;        // {type:'node'|'canvas', id?, offsetX?, offsetY?}
+let linkDrag = null;        // {fromNode, fromPort} 连线拖拽中
+let isRunning = false;
+
+const $ = (id) => document.getElementById(id);
+const canvas = $("canvas");
+const world = $("world");
+const linksLayer = $("linksLayer");
+
+// 节点类型元信息
+const TYPES = {
+  prompt:   { icon: "📝", color: "#2563eb", label: "提示词" },
+  image:    { icon: "🖼", color: "#7c3aed", label: "图片素材" },
+  video:    { icon: "🎬", color: "#d97706", label: "视频素材" },
+  seedance: { icon: "🎥", color: "#0891b2", label: "Seedance 2.0" },
+  minimax:  { icon: "🎞", color: "#059669", label: "MiniMax H3" },
+  output:   { icon: "📺", color: "#64748b", label: "输出" },
+};
+
+// ================= 画布变换 =================
+function applyView() {
+  canvas.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.scale})`;
+}
+function screenToWorld(e) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: (e.clientX - rect.left) / view.scale,
+    y: (e.clientY - rect.top) / view.scale,
+  };
+}
+
+// ================= 节点 =================
+function addNode(type, x, y, initial) {
+  const meta = TYPES[type];
+  const id = nextId++;
+  const pos = x !== undefined ? { x, y } : { x: 100 + Math.random() * 240, y: 80 + Math.random() * 180 };
+  const node = {
+    id, type, x: pos.x, y: pos.y,
+    text: (initial && initial.text) || "",
+    media: (initial && initial.media) || null,  // {kind:'image'|'video', url}
+    status: "idle", // idle | running | done | error
+  };
+  nodes.push(node);
+  renderNode(node);
+  updateStatus();
+  log(`添加节点「${meta.label}」#${id}`);
+  return node;
+}
+
+function renderNode(node) {
+  const meta = TYPES[node.type];
+  const el = document.createElement("div");
+  el.className = "node";
+  el.id = "node-" + node.id;
+  el.style.left = node.x + "px";
+  el.style.top = node.y + "px";
+
+  // 头部
+  let bodyHTML = "";
+  if (node.type === "prompt") {
+    bodyHTML = `<textarea class="n-textarea" placeholder="描述画面 / 分镜…">${escapeHtml(node.text)}</textarea>`;
+  } else if (node.type === "image" || node.type === "video") {
+    const kind = node.type === "image" ? "图片" : "视频";
+    bodyHTML = `<div class="n-preview" onclick="pickMedia(${node.id})">
+        ${node.media ? (node.type === "image"
+          ? `<img src="${node.media.url}" alt="预览"/>`
+          : `<video src="${node.media.url}" controls muted></video>`)
+        : `<span class="up-hint"><b>上传${kind}</b>点击选择文件</span>`}
+      </div>
+      <input type="file" class="n-upload" id="up-${node.id}" accept="${node.type === 'image' ? 'image/*' : 'video/*'}" onchange="onPickFile(${node.id}, this)"/>`;
+  } else if (node.type === "seedance" || node.type === "minimax") {
+    const isSeed = node.type === "seedance";
+    bodyHTML = `<div class="n-model"><b>${isSeed ? "Seedance 2.0" : "MiniMax H3"}</b>
+      <span>${isSeed ? "文生 / 图生视频 · 720P" : "首尾帧 / 图生视频 · 2K"}</span></div>`;
+  } else if (node.type === "output") {
+    bodyHTML = `<div class="n-out"><span class="out-ok">等待上游输出…</span></div>`;
+  }
+
+  el.innerHTML = `
+    <button class="node-del" onclick="removeNode(${node.id})" title="删除节点">×</button>
+    <div class="node-head">
+      <span class="n-icon" style="background:${meta.color}">${meta.icon}</span>
+      <span>${meta.label}</span>
+    </div>
+    <div class="node-body">
+      ${bodyHTML}
+      <div class="n-status"><span class="st-dot"></span><span class="st-text">待执行</span></div>
+    </div>
+    <div class="port out" data-node="${node.id}" data-port="out" title="输出"></div>
+    <div class="port in" data-node="${node.id}" data-port="in" title="输入"></div>
+  `;
+  world.appendChild(el);
+  bindNodeEvents(el, node);
+  return el;
+}
+
+function escapeHtml(s) {
+  return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+// 节点事件：选中 / 拖拽 / 端口连线
+function bindNodeEvents(el, node) {
+  el.addEventListener("mousedown", (e) => {
+    if (e.target.closest(".node-del") || e.target.closest(".port") || e.target.closest(".n-preview") || e.target.closest("textarea")) return;
+    e.stopPropagation();
+    selectNode(node.id);
+    dragging = { type: "node", id: node.id, offX: e.clientX - node.x * view.scale - view.x, offY: e.clientY - node.y * view.scale - view.y };
+  });
+
+  // 端口连线
+  const outPort = el.querySelector(".port.out");
+  const inPort = el.querySelector(".port.in");
+  outPort.addEventListener("mousedown", (e) => {
+    e.stopPropagation();
+    linkDrag = { fromNode: node.id, fromPort: "out" };
+    createTempLink(e);
+  });
+  inPort.addEventListener("mousedown", (e) => {
+    e.stopPropagation();
+    linkDrag = { fromNode: node.id, fromPort: "in" };
+    createTempLink(e);
+  });
+  // 输入端口接收：mouseup 判定
+  inPort.addEventListener("mouseup", (e) => {
+    e.stopPropagation();
+    if (linkDrag && linkDrag.fromPort === "out" && linkDrag.fromNode !== node.id) {
+      connect(linkDrag.fromNode, node.id);
+    }
+    endLinkDrag();
+  });
+  // 文本节点输入同步
+  const ta = el.querySelector(".n-textarea");
+  if (ta) ta.addEventListener("input", () => { node.text = ta.value; });
+}
+
+// ================= 连线 =================
+function tempPath() {
+  const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  p.setAttribute("class", "link");
+  linksLayer.appendChild(p);
+  return p;
+}
+
+function createTempLink(e) {
+  removeTempLink();
+  tempPath();
+  moveTempLink(e);
+}
+
+function moveTempLink(e) {
+  const tp = linksLayer.querySelector(".link.temp");
+  if (!tp) return;
+  const a = portCenter(linkDrag.fromNode, linkDrag.fromPort);
+  const b = { x: (e.clientX - canvas.getBoundingClientRect().left) / view.scale, y: (e.clientY - canvas.getBoundingClientRect().top) / view.scale };
+  tp.setAttribute("d", bezier(a, b));
+  tp.setAttribute("class", "link temp");
+}
+
+function removeTempLink() {
+  linksLayer.querySelectorAll(".link.temp").forEach((n) => n.remove());
+}
+
+function endLinkDrag() {
+  removeTempLink();
+  linkDrag = null;
+}
+
+function bezier(a, b) {
+  const dx = Math.max(40, Math.abs(b.x - a.x) * 0.5);
+  return `M ${a.x} ${a.y} C ${a.x + dx} ${a.y}, ${b.x - dx} ${b.y}, ${b.x} ${b.y}`;
+}
+
+function portCenter(nodeId, port) {
+  const el = document.getElementById("node-" + nodeId);
+  if (!el) return { x: 0, y: 0 };
+  const r = el.getBoundingClientRect();
+  const c = canvas.getBoundingClientRect();
+  const x = port === "out" ? r.right - c.left : r.left - c.left;
+  const y = (r.top + r.height / 2) - c.top;
+  return { x: x / view.scale, y: y / view.scale };
+}
+
+function connect(fromId, toId) {
+  if (links.some((l) => l.from === fromId && l.to === toId)) { log("已存在相同连线"); return; }
+  links.push({ from: fromId, to: toId });
+  renderLinks();
+  updateStatus();
+  log(`连接 #${fromId} → #${toId}`);
+}
+
+function renderLinks() {
+  linksLayer.querySelectorAll(".link:not(.temp)").forEach((n) => n.remove());
+  links.forEach((l) => {
+    const p = tempPath();
+    p.setAttribute("class", "link");
+    p.setAttribute("data-from", l.from);
+    p.setAttribute("data-to", l.to);
+    const a = portCenter(l.from, "out");
+    const b = portCenter(l.to, "in");
+    p.setAttribute("d", bezier(a, b));
+    // 双击删除连线
+    p.addEventListener("dblclick", (e) => {
+      e.stopPropagation();
+      removeLink(l);
+    });
+  });
+}
+
+function removeLink(l) {
+  links = links.filter((x) => x !== l);
+  renderLinks();
+  updateStatus();
+  log("删除连线");
+}
+
+// ================= 删除节点 =================
+function removeNode(id) {
+  nodes = nodes.filter((n) => n.id !== id);
+  links = links.filter((l) => l.from !== id && l.to !== id);
+  const el = document.getElementById("node-" + id);
+  if (el) el.remove();
+  if (selectedId === id) selectedId = null;
+  renderLinks();
+  updateStatus();
+  log(`删除节点 #${id}`);
+}
+
+// ================= 上传素材 =================
+function pickMedia(nodeId) {
+  const input = document.getElementById("up-" + nodeId);
+  if (input) input.click();
+}
+
+function onPickFile(nodeId, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const node = nodes.find((n) => n.id === nodeId);
+  if (!node) return;
+  const url = URL.createObjectURL(file);
+  node.media = { kind: node.type === "image" ? "image" : "video", url };
+  const el = document.getElementById("node-" + nodeId);
+  const preview = el.querySelector(".n-preview");
+  if (node.type === "image") preview.innerHTML = `<img src="${url}" alt="预览"/>`;
+  else preview.innerHTML = `<video src="${url}" controls muted></video>`;
+  log(`上传${node.type === "image" ? "图片" : "视频"} → #${nodeId}`);
+}
+
+// ================= 选中 =================
+function selectNode(id) {
+  selectedId = id;
+  document.querySelectorAll(".node.selected").forEach((n) => n.classList.remove("selected"));
+  const el = document.getElementById("node-" + id);
+  if (el) el.classList.add("selected");
+}
+
+// ================= 画布平移 / 缩放 =================
+canvas.addEventListener("mousedown", (e) => {
+  if (e.target === canvas || e.target === world) {
+    dragging = { type: "canvas", startX: e.clientX - view.x, startY: e.clientY - view.y };
+  }
+});
+
+document.addEventListener("mousemove", (e) => {
+  if (dragging) {
+    if (dragging.type === "canvas") {
+      view.x = e.clientX - dragging.startX;
+      view.y = e.clientY - dragging.startY;
+      applyView();
+    } else if (dragging.type === "node") {
+      const node = nodes.find((n) => n.id === dragging.id);
+      if (node) {
+        node.x = Math.round((e.clientX - dragging.offX - view.x) / view.scale);
+        node.y = Math.round((e.clientY - dragging.offY - view.y) / view.scale);
+        const el = document.getElementById("node-" + node.id);
+        el.style.left = node.x + "px";
+        el.style.top = node.y + "px";
+        renderLinks();
+      }
+    }
+  }
+  if (linkDrag) moveTempLink(e);
+});
+
+document.addEventListener("mouseup", (e) => {
+  if (dragging) dragging = null;
+  if (linkDrag) {
+    // 若落在输入端口上由 inPort mouseup 处理；否则取消
+    setTimeout(() => endLinkDrag(), 0);
+  }
+  // 点击空白取消选中
+  if (e.target === canvas || e.target === world) selectedId = null;
+});
+
+canvasWrap.addEventListener("wheel", (e) => {
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) / view.scale;
+  const my = (e.clientY - rect.top) / view.scale;
+  const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+  view.scale = Math.min(2.5, Math.max(0.4, view.scale * factor));
+  view.x = e.clientX - rect.left - mx * view.scale;
+  view.y = e.clientY - rect.top - my * view.scale;
+  applyView();
+});
+
+// ================= 运行演示 =================
+async function runFlow() {
+  if (isRunning) return;
+  if (nodes.length === 0) { log("画布为空，先添加节点"); return; }
+  isRunning = true;
+  $("runBanner").style.display = "block";
+  document.querySelectorAll(".node").forEach((n) => n.classList.remove("running", "done", "error"));
+  linksLayer.querySelectorAll(".link.flow").forEach((n) => n.remove());
+  log("开始执行工作流…");
+
+  // 按拓扑顺序：简单按依赖（连线指向）分层执行
+  const order = [];
+  const visited = new Set();
+  function visit(id) {
+    if (visited.has(id)) return;
+    visited.add(id);
+    links.filter((l) => l.to === id).forEach((l) => visit(l.from));
+    order.push(id);
+  }
+  nodes.forEach((n) => visit(n.id));
+
+  for (const id of order) {
+    const node = nodes.find((n) => n.id === id);
+    const el = document.getElementById("node-" + id);
+    if (!node) continue;
+    el.classList.add("running");
+    setNodeStatus(node, "running");
+    // 高亮进入该节点的连线
+    links.filter((l) => l.to === id).forEach((l) => {
+      const lp = linksLayer.querySelector(`.link[data-from="${l.from}"][data-to="${l.to}"]`);
+      if (lp) lp.setAttribute("class", "link flow");
+    });
+    log(`执行 ${TYPES[node.type].label} #${id} …`);
+    await sleep(700 + Math.random() * 500);
+    el.classList.remove("running");
+    el.classList.add("done");
+    setNodeStatus(node, "done");
+  }
+  $("runBanner").style.display = "none";
+  isRunning = false;
+  log("✅ 工作流执行完成");
+}
+
+function setNodeStatus(node, status) {
+  const el = document.getElementById("node-" + node.id);
+  if (!el) return;
+  const st = el.querySelector(".n-status .st-text");
+  if (st) st.textContent = status === "done" ? "已完成" : status === "running" ? "执行中…" : "待执行";
+  node.status = status;
+}
+
+function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+
+// ================= 示例工作流 =================
+function loadDemo() {
+  clearAll();
+  const p1 = addNode("prompt", 60, 100, { text: "一段云雾缭绕的山水延时摄影，光线柔和，8K 质感" });
+  const p2 = addNode("prompt", 60, 260, { text: "镜头缓缓推进，云海翻涌，金色日出" });
+  const img = addNode("image", 60, 420);
+  const seed = addNode("seedance", 420, 120);
+  const mini = addNode("minimax", 420, 330);
+  const out = addNode("output", 780, 220);
+  connect(p1.id, seed.id);
+  connect(img.id, seed.id);
+  connect(p2.id, mini.id);
+  connect(seed.id, out.id);
+  connect(mini.id, out.id);
+  log("已加载示例工作流：提示词/图片 → Seedance 2.0 + MiniMax H3 → 输出");
+}
+
+// ================= 清空 =================
+function clearAll() {
+  nodes = [];
+  links = [];
+  nextId = 1;
+  world.innerHTML = "";
+  linksLayer.innerHTML = "";
+  selectedId = null;
+  updateStatus();
+  log("画布已清空");
+}
+
+// ================= 状态栏 =================
+function updateStatus() {
+  $("nodeCount").textContent = nodes.length + " 个节点";
+  $("linkCount").textContent = links.length + " 条连线";
+}
+function log(msg) { $("logText").textContent = msg; }
+
+// ================= 初始化 =================
+applyView();
+loadDemo();
+</script>
+</body>
+</html>
