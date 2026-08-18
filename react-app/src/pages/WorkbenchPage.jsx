@@ -4,6 +4,7 @@ import { API_BASE_URL } from "../config.js";
 import useChat from "../hooks/useChat.js";
 import { useAuth } from "../hooks/useAuth.jsx";
 import { createWorkbenchItem, deleteWorkbenchItem, getWorkbench, updateWorkbenchItem } from "../api/workbenchApi.js";
+import { renderMessage } from "../lib/text.jsx";
 
 const navItems = [
   { id: "home", label: "首页" },
@@ -318,7 +319,7 @@ export default function WorkbenchPage() {
             <div className={"wb-msg " + m.role} key={i}>
               <div className="wb-avatar">{m.role === "bot" ? "AI" : "我"}</div>
               <div className="wb-bubble">
-                <p>{m.text}</p>
+                <div className="wb-msg-text">{renderMessage(m.text)}</div>
                 {m.suggestions && (
                   <div className="wb-suggestions">
                     {m.suggestions.map((s) => (

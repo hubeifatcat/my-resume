@@ -1,4 +1,4 @@
-import { renderInlineText } from "../../lib/text.jsx";
+import { renderMessage } from "../../lib/text.jsx";
 
 export default function ChatPanel(props) {
   const { messages, typing, streaming, input, setInput, chatRef, sendMessage, handleKeydown } = props;
@@ -10,7 +10,7 @@ export default function ChatPanel(props) {
           <div className={"ma-msg " + m.role} key={i}>
             <div className="ma-avatar">{m.role === "bot" ? "AI" : "我"}</div>
             <div className="ma-bubble">
-              <div className={"ma-text" + (streaming && i === messages.length - 1 && m.role === "bot" ? " streaming" : "")}>{renderInlineText(m.text)}</div>
+              <div className={"ma-text" + (streaming && i === messages.length - 1 && m.role === "bot" ? " streaming" : "")}>{renderMessage(m.text)}</div>
               {m.suggestions && (
                 <div className="ma-suggestions">
                   {m.suggestions.map((s) => (
