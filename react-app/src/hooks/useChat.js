@@ -18,7 +18,7 @@ export const exampleQuestions = [
 
 const initialMessage = {
   role: "bot",
-  text: "欢迎体验多智能体 Demo。你可以问简历/项目问题，也可以模拟故障分析或脚本生成。",
+  text: "欢迎体验多智能体 Demo。你可以问简历/项目问题，也可以模拟故障分析或脚本生成。\n登录后还能对我说『添加任务：xxx』，我会把任务记入你的工作台。",
   suggestions: exampleQuestions,
 };
 

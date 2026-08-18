@@ -335,17 +335,45 @@ async def chat(req: ChatRequest, user: dict | None = Depends(get_current_user_op
         }
         _audit(user or {"id": None, "username": "anonymous"}, "chat_blocked", "chat", conv_id)
     else:
-        try:
-            result = await harness.handle(req.message, req.skills, req.tools, conv_id)
-        except Exception:
-            result = {
-                "answer": answer_question(req.message),
-                "conversation_id": conv_id,
-                "mode": "knowledge",
-                "agents": [],
-                "trace": {},
-                "blackboard": {},
-            }
+        task_parsed = _parse_task_add(req.message)
+        if task_parsed is not None:
+            matched, task_title = task_parsed
+            if matched and not user:
+                result = {
+                    "answer": "添加任务需要先登录账号。请登录后再对我说『添加任务：任务内容』，我会把它记入你的工作台。",
+                    "conversation_id": conv_id,
+                    "mode": "task_login_required",
+                    "agents": [],
+                    "trace": {},
+                    "blackboard": {},
+                }
+            elif matched and not task_title:
+                result = {
+                    "answer": "收到，你想添加什么任务？请说『添加任务：任务内容』，例如『添加任务：明天上午部署验收』。",
+                    "conversation_id": conv_id,
+                    "mode": "task_ask_title",
+                    "agents": [],
+                    "trace": {},
+                    "blackboard": {},
+                }
+            elif matched:
+                item = create_workbench_item(user["id"], "tasks", task_title, "", "todo")
+                _audit(user, "task_add_via_chat", "workbench", str(item["id"]), {"title": task_title})
+                result = {
+                    "answer": (
+                        f"✅ 已把任务「{task_title}」添加到你的工作台（待办状态）。\n"
+                        "可以到工作台的「任务」模块查看；对我说『开始处理』或到工作台点击「开始处理」推进进度。"
+                    ),
+                    "conversation_id": conv_id,
+                    "mode": "task_add",
+                    "agents": [],
+                    "trace": {},
+                    "blackboard": {},
+                }
+            else:
+                result = await _run_harness(req.message, req.skills, req.tools, conv_id)
+        else:
+            result = await _run_harness(req.message, req.skills, req.tools, conv_id)
 
     if user:
         existing = get_conversation(user["id"], conv_id)
@@ -448,6 +476,43 @@ def _audit(user: dict, action: str, target_type: str = "", target_id: str = "", 
         target_id,
         json.dumps(detail, ensure_ascii=False) if detail is not None else None,
     )
+
+
+# 对话添加任务：识别「添加任务 / 新建任务 / 记个任务 / 加个待办」等表达
+TASK_ADD_PATTERNS = [
+    r"添加任务[：:\s]*([^\n]{0,80})",
+    r"新建任务[：:\s]*([^\n]{0,80})",
+    r"创建任务[：:\s]*([^\n]{0,80})",
+    r"记(?:一个|个|一)?任务[：:\s]*([^\n]{0,80})",
+    r"加(?:一个|个|一)?任务[：:\s]*([^\n]{0,80})",
+    r"添加待办[：:\s]*([^\n]{0,80})",
+    r"新建待办[：:\s]*([^\n]{0,80})",
+    r"记(?:一个|个|一)?待办[：:\s]*([^\n]{0,80})",
+]
+
+
+def _parse_task_add(message: str) -> tuple | None:
+    """返回 (matched, title)；matched=False 表示未命中任务添加意图。"""
+    for pattern in TASK_ADD_PATTERNS:
+        m = re.search(pattern, message.strip())
+        if m:
+            title = m.group(1).strip().strip("，。！？!?、,. ")
+            return True, title
+    return None
+
+
+async def _run_harness(message: str, skills, tools, conv_id: str) -> dict:
+    try:
+        return await harness.handle(message, skills, tools, conv_id)
+    except Exception:
+        return {
+            "answer": answer_question(message),
+            "conversation_id": conv_id,
+            "mode": "knowledge",
+            "agents": [],
+            "trace": {},
+            "blackboard": {},
+        }
 
 
 @app.get("/api/admin/stats")

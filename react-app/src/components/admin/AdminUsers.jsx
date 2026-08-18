@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { deleteUser, getUsers, hardDeleteUser, resetUserPassword, setUserRole } from "../../api/adminApi.js";
-import { fmtDate, roleLabel } from "./adminHelpers.js";
+import { fmtTime, roleLabel } from "./adminHelpers.js";
 
 export default function AdminUsers() {
   const [search, setSearch] = useState("");
@@ -109,7 +109,7 @@ export default function AdminUsers() {
                   <td>{u.email || "-"}</td>
                   <td><span className={u.role === "admin" ? "ad-tag admin" : "ad-tag"}>{roleLabel(u.role)}</span></td>
                   <td>{u.conversation_count ?? 0}</td>
-                  <td>{fmtDate(u.created_at)}</td>
+                  <td>{fmtTime(u.created_at)}</td>
                   <td className="ad-actions">
                     {u.deleted ? (
                       <>
