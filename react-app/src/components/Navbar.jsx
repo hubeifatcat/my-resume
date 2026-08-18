@@ -6,6 +6,7 @@ import { useAuth } from "../hooks/useAuth.jsx";
 const links = [
   { to: "/", label: "首页" },
   { to: "/demo", label: "Demo" },
+  { to: "/canvas", label: "画布" },
   { to: "/workbench", label: "工作台" },
   { to: "/resume", label: "简历" },
 ];
