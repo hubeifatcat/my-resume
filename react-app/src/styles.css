@@ -4636,6 +4636,20 @@ body {
   color: #64748b;
 }
 
+.ad-tag.danger {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.ad-row-deleted {
+  background: #fafafa;
+  opacity: 0.72;
+}
+
+.ad-row-deleted strong {
+  text-decoration: line-through;
+}
+
 .ad-link {
   border: 0;
   background: transparent;

@@ -75,6 +75,8 @@ def _user_from_payload(payload: dict, expected_type: str) -> dict:
     user = get_user_by_id(int(payload.get("sub", "0")))
     if not user:
         raise HTTPException(status_code=401, detail="user not found")
+    if user.get("deleted"):
+        raise HTTPException(status_code=401, detail="user deleted")
     if payload.get("ver") != user.get("token_version", 0):
         raise HTTPException(status_code=401, detail="token revoked")
     return user

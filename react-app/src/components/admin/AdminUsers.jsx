@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { deleteUser, getUsers, resetUserPassword, setUserRole } from "../../api/adminApi.js";
+import { deleteUser, getUsers, hardDeleteUser, resetUserPassword, setUserRole } from "../../api/adminApi.js";
 import { fmtDate, roleLabel } from "./adminHelpers.js";
 
 export default function AdminUsers() {
@@ -50,9 +50,19 @@ export default function AdminUsers() {
   }
 
   async function remove(user) {
-    if (!window.confirm(`确认删除用户 ${user.username}？其会话记录也会一并删除。`)) return;
+    if (!window.confirm(`确认删除用户 ${user.username}？\n\n这是软删除：其会话与工作台数据会保留，仅标记为已删除，不可再登录。\n如需彻底清除数据，请对该用户使用「彻底删除」。`)) return;
     try {
       await deleteUser(user.id);
+      load();
+    } catch (e) {
+      window.alert(e.message);
+    }
+  }
+
+  async function hardRemove(user) {
+    if (!window.confirm(`确认彻底删除用户 ${user.username}？\n\n此操作不可恢复：将物理删除该用户及其全部会话、工作台数据！`)) return;
+    try {
+      await hardDeleteUser(user.id);
       load();
     } catch (e) {
       window.alert(e.message);
@@ -69,7 +79,7 @@ export default function AdminUsers() {
           onKeyDown={(e) => e.key === "Enter" && load()}
         />
         <button className="ad-btn" onClick={load}>查询</button>
-        <span className="ad-total">共 {total} 个用户</span>
+        <span className="ad-total">共 {total} 个用户（含已删除）</span>
       </div>
       {error && <div className="ad-error">{error}</div>}
       {loading ? (
@@ -90,17 +100,28 @@ export default function AdminUsers() {
             </thead>
             <tbody>
               {users.map((u) => (
-                <tr key={u.id}>
+                <tr key={u.id} className={u.deleted ? "ad-row-deleted" : ""}>
                   <td>{u.id}</td>
-                  <td><strong>{u.username}</strong></td>
+                  <td>
+                    <strong>{u.username}</strong>{" "}
+                    {u.deleted ? <span className="ad-tag danger">已删除</span> : null}
+                  </td>
                   <td>{u.email || "-"}</td>
                   <td><span className={u.role === "admin" ? "ad-tag admin" : "ad-tag"}>{roleLabel(u.role)}</span></td>
                   <td>{u.conversation_count ?? 0}</td>
                   <td>{fmtDate(u.created_at)}</td>
                   <td className="ad-actions">
-                    <button onClick={() => toggleRole(u)}>{u.role === "admin" ? "取消管理员" : "设为管理员"}</button>
-                    <button onClick={() => resetPwd(u)}>重置密码</button>
-                    <button className="danger" onClick={() => remove(u)}>删除</button>
+                    {u.deleted ? (
+                      <>
+                        <button className="danger" onClick={() => hardRemove(u)}>彻底删除</button>
+                      </>
+                    ) : (
+                      <>
+                        <button onClick={() => toggleRole(u)}>{u.role === "admin" ? "取消管理员" : "设为管理员"}</button>
+                        <button onClick={() => resetPwd(u)}>重置密码</button>
+                        <button className="danger" onClick={() => remove(u)}>删除</button>
+                      </>
+                    )}
                   </td>
                 </tr>
               ))}

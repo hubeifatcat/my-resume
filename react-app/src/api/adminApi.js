@@ -41,6 +41,10 @@ export function deleteUser(userId) {
   return apiFetch(`admin/users/${userId}`, { method: "DELETE" }).then(read);
 }
 
+export function hardDeleteUser(userId) {
+  return apiFetch(`admin/users/${userId}/hard`, { method: "DELETE" }).then(read);
+}
+
 export function getConversations(search = "", offset = 0, limit = 50) {
   const params = new URLSearchParams({ search, offset: String(offset), limit: String(limit) });
   return apiFetch(`admin/conversations?${params}`).then(read);

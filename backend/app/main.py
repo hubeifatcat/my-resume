@@ -47,6 +47,7 @@ from .db import (
     get_user_by_id,
     get_user_by_username,
     get_workbench_item,
+    hard_delete_user,
     init_db,
     list_all_conversations,
     list_announcements,
@@ -209,6 +210,8 @@ def register(req: RegisterRequest):
 def login(req: LoginRequest):
     _rate_limit("login:" + req.username, limit=10)
     user = get_user_by_username(req.username.strip())
+    if user and user.get("deleted"):
+        raise HTTPException(status_code=401, detail="account deleted")
     if user and user.get("locked_until") and time.time() < user["locked_until"]:
         remain = int(user["locked_until"] - time.time())
         raise HTTPException(status_code=429, detail=f"account locked, retry in {remain}s")
@@ -497,11 +500,26 @@ def admin_reset_password(user_id: int, body: dict, admin: dict = Depends(get_cur
 def admin_delete_user(user_id: int, admin: dict = Depends(get_current_admin)):
     if user_id == admin["id"]:
         raise HTTPException(status_code=400, detail="cannot delete yourself")
-    revoke_user_refresh_tokens(user_id)
-    if not delete_user(user_id):
+    user = get_user_by_id(user_id)
+    if not user:
         raise HTTPException(status_code=404, detail="user not found")
-    _audit(admin, "delete_user", "users", str(user_id))
-    return {"deleted": True, "user_id": user_id}
+    revoke_user_refresh_tokens(user_id)
+    delete_user(user_id)
+    _audit(admin, "delete_user", "users", str(user_id), {"soft": True})
+    return {"deleted": True, "soft": True, "user_id": user_id}
+
+
+@app.delete("/api/admin/users/{user_id}/hard")
+def admin_hard_delete_user(user_id: int, admin: dict = Depends(get_current_admin)):
+    if user_id == admin["id"]:
+        raise HTTPException(status_code=400, detail="cannot delete yourself")
+    user = get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="user not found")
+    if not hard_delete_user(user_id):
+        raise HTTPException(status_code=404, detail="user not found")
+    _audit(admin, "delete_user", "users", str(user_id), {"soft": False})
+    return {"deleted": True, "soft": False, "user_id": user_id}
 
 
 @app.get("/api/admin/conversations")

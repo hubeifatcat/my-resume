@@ -126,6 +126,8 @@ def init_db():
             conn.execute("ALTER TABLE users ADD COLUMN locked_until REAL")
         if "token_version" not in cols:
             conn.execute("ALTER TABLE users ADD COLUMN token_version INTEGER NOT NULL DEFAULT 0")
+        if "deleted" not in cols:
+            conn.execute("ALTER TABLE users ADD COLUMN deleted INTEGER NOT NULL DEFAULT 0")
         conn.commit()
         conn.close()
 
@@ -322,11 +324,28 @@ def reset_user_password(user_id: int, password_hash: str) -> bool:
 
 
 def delete_user(user_id: int) -> bool:
+    """软删除：标记 deleted=1，保留用户数据（会话/工作台等），供管理员查看与彻底删除。"""
+    with DB_LOCK:
+        conn = _connect()
+        try:
+            cur = conn.execute(
+                "UPDATE users SET deleted = 1 WHERE id = ? AND deleted = 0",
+                (user_id,),
+            )
+            conn.commit()
+            return cur.rowcount > 0
+        finally:
+            conn.close()
+
+
+def hard_delete_user(user_id: int) -> bool:
+    """彻底删除：物理删除用户及其会话、工作台、refresh token 数据。"""
     with DB_LOCK:
         conn = _connect()
         try:
             conn.execute("DELETE FROM conversations WHERE user_id = ?", (user_id,))
             conn.execute("DELETE FROM workbench_items WHERE user_id = ?", (user_id,))
+            conn.execute("DELETE FROM refresh_tokens WHERE user_id = ?", (user_id,))
             cur = conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
             conn.commit()
             return cur.rowcount > 0
