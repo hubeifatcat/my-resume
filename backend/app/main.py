@@ -88,7 +88,13 @@ from .trace import trace_store
 init_db()
 ensure_admin(os.getenv("ADMIN_USERNAME", ""))
 
-app = FastAPI(title="Wuxing Multi-Agent API", version="2.0.0")
+app = FastAPI(
+    title="Wuxing Multi-Agent API",
+    version="2.0.0",
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
+)
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
 access_logger = logging.getLogger("wuxing.access")
