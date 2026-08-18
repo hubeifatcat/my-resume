@@ -3462,6 +3462,53 @@ body {
   font-weight: 700;
 }
 
+.wb-stat-link {
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  position: relative;
+}
+
+.wb-stat-link:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md, 0 10px 25px -5px rgba(0, 0, 0, 0.12));
+}
+
+.wb-stat-go {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  font-size: 0.7rem;
+  color: var(--ink-3);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.wb-stat-link:hover .wb-stat-go {
+  opacity: 1;
+}
+
+.wb-task-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+}
+
+.wb-task-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.wb-task-group-head em {
+  color: var(--ink-3);
+  font-size: 0.76rem;
+  font-style: normal;
+}
+
 .wb-stat p {
   color: var(--ink-3);
   font-size: 0.72rem;

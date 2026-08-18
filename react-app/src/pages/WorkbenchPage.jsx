@@ -159,10 +159,10 @@ export default function WorkbenchPage() {
     const total = tasks.length;
     const rate = total ? Math.round((done / total) * 100) : 0;
     return [
-      { label: "今日待办", value: String(todo), unit: "个", note: "待处理任务待完成", tone: "blue" },
-      { label: "进行中", value: String(doing), unit: "个", note: "正在推进的任务", tone: "cyan" },
-      { label: "今日会议", value: String((modules.schedule || []).length), unit: "场", note: "当天日程安排", tone: "amber" },
-      { label: "工作完成率", value: String(rate), unit: "%", note: "整体任务完成情况", tone: "green" },
+      { label: "今日待办", value: String(todo), unit: "个", note: "待处理任务待完成", tone: "blue", target: "tasks" },
+      { label: "进行中", value: String(doing), unit: "个", note: "正在推进的任务", tone: "cyan", target: "tasks" },
+      { label: "今日会议", value: String((modules.schedule || []).length), unit: "场", note: "当天日程安排", tone: "amber", target: "schedule" },
+      { label: "工作完成率", value: String(rate), unit: "%", note: "整体任务完成情况", tone: "green", target: "tasks" },
     ];
   }, [modules]);
 
@@ -234,15 +234,55 @@ export default function WorkbenchPage() {
     }
   }
 
-  async function cycleTaskStatus(item) {
+  // ---------- 任务闭环：开始处理 / 确认完成 / 重新打开 ----------
+  async function startTask(item) {
     if (!canEdit || !item.id) return;
-    const next = item.status === "todo" ? "doing" : item.status === "doing" ? "done" : "todo";
     setBusy(true);
     try {
       await updateWorkbenchItem(item.id, {
         title: item.title,
         meta: item.meta || "",
-        status: next,
+        status: "doing",
+      });
+      await loadWorkbench();
+    } catch (err) {
+      window.alert(err.message || "更新失败");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function completeTask(item) {
+    if (!canEdit || !item.id) return;
+    const note = window.prompt(`确认完成「${item.title}」？\n可填写完成备注（可选，留空直接完成）：`, "");
+    if (note === null) return;
+    setBusy(true);
+    try {
+      const metaParts = [];
+      if (item.meta) metaParts.push(item.meta);
+      if (note.trim()) metaParts.push("完成备注：" + note.trim());
+      await updateWorkbenchItem(item.id, {
+        title: item.title,
+        meta: metaParts.join(" · "),
+        status: "done",
+      });
+      await loadWorkbench();
+    } catch (err) {
+      window.alert(err.message || "更新失败");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function reopenTask(item) {
+    if (!canEdit || !item.id) return;
+    if (!window.confirm(`重新打开「${item.title}」？将移回待办列表。`)) return;
+    setBusy(true);
+    try {
+      await updateWorkbenchItem(item.id, {
+        title: item.title,
+        meta: item.meta || "",
+        status: "todo",
       });
       await loadWorkbench();
     } catch (err) {
@@ -391,6 +431,9 @@ export default function WorkbenchPage() {
 
   // 通用模块条目渲染（可编辑）
   function renderModuleItems(module, items) {
+    if (module === "tasks") {
+      return renderTaskGroups(items);
+    }
     return (
       <div className="wb-module-list">
         {items.map((item) => (
@@ -399,23 +442,11 @@ export default function WorkbenchPage() {
             <div>
               <strong>{item.title}</strong>
               {item.meta && <span>{item.meta}</span>}
-              {module === "tasks" && item.status && (
-                <span className={"wb-task-status " + STATUS_TONE[item.status]}>
-                  {STATUS_LABEL[item.status]}
-                </span>
-              )}
             </div>
-            {canEdit && (
+            {canEdit && item.id && (
               <div className="wb-item-actions">
-                {module === "tasks" && item.id && (
-                  <button className="wb-mini-btn" onClick={() => cycleTaskStatus(item)}>推进</button>
-                )}
-                {item.id && (
-                  <>
-                    <button className="wb-mini-btn" onClick={() => startEdit(item, module)}>编辑</button>
-                    <button className="wb-mini-btn danger" onClick={() => removeItem(item)}>删除</button>
-                  </>
-                )}
+                <button className="wb-mini-btn" onClick={() => startEdit(item, module)}>编辑</button>
+                <button className="wb-mini-btn danger" onClick={() => removeItem(item)}>删除</button>
               </div>
             )}
           </div>
@@ -423,6 +454,58 @@ export default function WorkbenchPage() {
         {!items.length && <p className="wb-muted">暂无内容，点击下方按钮添加。</p>}
         {canEdit && (
           <button className="wb-add-btn" onClick={() => startCreate(module)}>+ 添加{MODULE_TITLES[module] || "内容"}</button>
+        )}
+      </div>
+    );
+  }
+
+  // 任务模块：按状态分组（待办 / 进行中 / 已完成），闭环操作
+  function renderTaskGroups(items) {
+    const groups = [
+      { key: "todo", label: "待办", items: items.filter((t) => t.status === "todo") },
+      { key: "doing", label: "进行中", items: items.filter((t) => t.status === "doing") },
+      { key: "done", label: "已完成", items: items.filter((t) => t.status === "done") },
+    ];
+    return (
+      <div className="wb-module-list">
+        {groups.map((g) => (
+          <div className="wb-task-group" key={g.key}>
+            <div className="wb-task-group-head">
+              <span className={"wb-task-status " + STATUS_TONE[g.key]}>{STATUS_LABEL[g.key]}</span>
+              <em>{g.items.length} 项</em>
+            </div>
+            {g.items.length ? (
+              g.items.map((item) => (
+                <div className="wb-module-item" key={item.id ?? item.key}>
+                  <span className="wb-quick-ico">{(item.title || "").slice(0, 1)}</span>
+                  <div>
+                    <strong>{item.title}</strong>
+                    {item.meta && <span>{item.meta}</span>}
+                  </div>
+                  {canEdit && item.id && (
+                    <div className="wb-item-actions">
+                      {item.status === "todo" && (
+                        <button className="wb-mini-btn primary" onClick={() => startTask(item)}>开始处理</button>
+                      )}
+                      {item.status === "doing" && (
+                        <button className="wb-mini-btn primary" onClick={() => completeTask(item)}>确认完成</button>
+                      )}
+                      {item.status === "done" && (
+                        <button className="wb-mini-btn" onClick={() => reopenTask(item)}>重新打开</button>
+                      )}
+                      <button className="wb-mini-btn" onClick={() => startEdit(item, "tasks")}>编辑</button>
+                      <button className="wb-mini-btn danger" onClick={() => removeItem(item)}>删除</button>
+                    </div>
+                  )}
+                </div>
+              ))
+            ) : (
+              <p className="wb-muted">暂无{g.label}任务。</p>
+            )}
+          </div>
+        ))}
+        {canEdit && (
+          <button className="wb-add-btn" onClick={() => startCreate("tasks")}>+ 添加任务</button>
         )}
       </div>
     );
@@ -525,13 +608,19 @@ export default function WorkbenchPage() {
           <div className="wb-content">
             <div className="wb-stats">
               {stats.map((s) => (
-                <div className={"wb-stat " + s.tone} key={s.label}>
+                <div
+                  className={"wb-stat " + s.tone + (s.target ? " wb-stat-link" : "")}
+                  key={s.label}
+                  onClick={() => s.target && setActiveNav(s.target)}
+                  title={s.target ? `点击查看${MODULE_TITLES[s.target]}` : ""}
+                >
                   <span className="wb-stat-ico">{s.label.slice(0, 1)}</span>
                   <div>
                     <strong>{s.value}<small>{s.unit}</small></strong>
                     <span>{s.label}</span>
                     <p>{s.note}</p>
                   </div>
+                  {s.target && <span className="wb-stat-go">查看 →</span>}
                 </div>
               ))}
             </div>
@@ -612,7 +701,7 @@ export default function WorkbenchPage() {
                   {activeNav === "notice"
                     ? "查看企业最新通知，AI 可提取公告要点。"
                     : activeNav === "tasks"
-                      ? "管理工作任务与进度，登录后点击「推进」切换状态，统计卡自动更新。"
+                      ? "任务闭环管理：待办 → 开始处理 → 确认完成，统计卡自动更新。"
                       : activeNav === "schedule"
                         ? "今日日程安排，登录后可增删改。"
                         : activeNav === "files"
