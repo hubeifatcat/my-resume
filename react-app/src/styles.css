@@ -2322,6 +2322,57 @@ footer .container {
   margin-top: 6px;
 }
 
+/* Agent 链路状态动画 */
+.ma-agent-item {
+  transition: border-color 0.25s ease, background 0.25s ease, transform 0.25s ease;
+}
+
+.ma-agent-item.running {
+  border-color: var(--cyan);
+  background: rgba(8, 145, 178, 0.08);
+  box-shadow: 0 0 0 1px rgba(8, 145, 178, 0.25);
+  transform: translateX(3px);
+}
+
+.ma-agent-item.running .ma-agent-dot {
+  background: var(--cyan);
+  animation: ma-pulse 0.9s ease-in-out infinite;
+}
+
+.ma-agent-item.done {
+  border-color: rgba(5, 150, 105, 0.4);
+  background: rgba(5, 150, 105, 0.06);
+  opacity: 0.85;
+}
+
+.ma-agent-item.done .ma-agent-dot {
+  background: #059669;
+}
+
+.ma-agent-item.done strong::after {
+  content: " ✓";
+  color: #059669;
+  font-size: 0.72rem;
+}
+
+@keyframes ma-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(8, 145, 178, 0.5); }
+  50% { box-shadow: 0 0 0 5px rgba(8, 145, 178, 0); }
+}
+
+/* 流式回答打字机光标 */
+.ma-text.streaming::after {
+  content: "▌";
+  color: var(--cyan);
+  animation: ma-blink 0.8s steps(1) infinite;
+  margin-left: 1px;
+}
+
+@keyframes ma-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
 .ma-agent-item strong,
 .ma-tool-item strong,
 .ma-blackboard-item strong {

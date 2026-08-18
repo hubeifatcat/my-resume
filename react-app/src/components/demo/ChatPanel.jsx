@@ -1,7 +1,7 @@
 import { renderInlineText } from "../../lib/text.jsx";
 
 export default function ChatPanel(props) {
-  const { messages, typing, input, setInput, chatRef, sendMessage, handleKeydown } = props;
+  const { messages, typing, streaming, input, setInput, chatRef, sendMessage, handleKeydown } = props;
 
   return (
     <main className="ma-demo-chat" ref={chatRef}>
@@ -10,7 +10,7 @@ export default function ChatPanel(props) {
           <div className={"ma-msg " + m.role} key={i}>
             <div className="ma-avatar">{m.role === "bot" ? "AI" : "我"}</div>
             <div className="ma-bubble">
-              <div className="ma-text">{renderInlineText(m.text)}</div>
+              <div className={"ma-text" + (streaming && i === messages.length - 1 && m.role === "bot" ? " streaming" : "")}>{renderInlineText(m.text)}</div>
               {m.suggestions && (
                 <div className="ma-suggestions">
                   {m.suggestions.map((s) => (
@@ -21,7 +21,7 @@ export default function ChatPanel(props) {
             </div>
           </div>
         ))}
-        {typing && (
+        {typing && !streaming && (
           <div className="ma-msg bot">
             <div className="ma-avatar">AI</div>
             <div className="ma-bubble ma-typing"><span></span><span></span><span></span></div>

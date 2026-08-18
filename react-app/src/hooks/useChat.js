@@ -7,6 +7,7 @@ import {
   getTools,
   listConversations,
   sendChat,
+  streamChat,
 } from "../api/demoApi.js";
 
 export const exampleQuestions = [
@@ -26,6 +27,9 @@ export default function useChat(user) {
   const [messages, setMessages] = useState([initialMessage]);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
+  const [streaming, setStreaming] = useState(false);
+  const [streamSteps, setStreamSteps] = useState([]);
+  const [streamActive, setStreamActive] = useState(null);
   const [status, setStatus] = useState("正在连接后端…");
   const [statusOnline, setStatusOnline] = useState(false);
   const [agentsMeta, setAgentsMeta] = useState([]);
@@ -131,27 +135,78 @@ export default function useChat(user) {
     setInput("");
     setMessages((prev) => [...prev, { role: "user", text: value }]);
     setTyping(true);
-    try {
-      const resp = await sendChat({
-        message: value,
-        conversation_id: currentConvId,
-        skills: Array.from(selectedSkills),
-        tools: Array.from(selectedTools),
-      });
-      const data = await resp.json();
-      if (resp.ok && data.answer) {
-        setMessages((prev) => [...prev, { role: "bot", text: data.answer }]);
-        setTrace(data.trace || null);
-        setBlackboard(data.blackboard || {});
-        setCurrentConvId(data.conversation_id);
-        if (user) loadHistory();
-      } else {
-        setMessages((prev) => [...prev, { role: "bot", text: data.detail || "请求失败，请稍后重试。" }]);
+    setStreaming(true);
+    setStreamSteps([]);
+    setStreamActive("router");
+    setTrace(null);
+    setBlackboard({});
+    setExpandedStep(null);
+
+    const payload = {
+      message: value,
+      conversation_id: currentConvId,
+      skills: Array.from(selectedSkills),
+      tools: Array.from(selectedTools),
+    };
+    // 先放一个空 bot 气泡，chunk 逐块填充
+    setMessages((prev) => [...prev, { role: "bot", text: "" }]);
+    let streamedText = "";
+    let finished = false;
+
+    function onEvent(evt) {
+      if (evt.type === "stage") {
+        setStreamSteps((prev) => [...prev, evt.stage]);
+        setStreamActive(evt.stage.agent);
+        if (evt.stage.status === "ok") {
+          // 已完成的步骤不做高亮处理，由 TracePanel 展示
+        }
+      } else if (evt.type === "chunk") {
+        streamedText += evt.text;
+        setMessages((prev) => {
+          const next = [...prev];
+          const last = next[next.length - 1];
+          next[next.length - 1] = { ...last, text: streamedText };
+          return next;
+        });
+      } else if (evt.type === "done") {
+        finished = true;
+        setTrace(evt.trace || null);
+        setBlackboard(evt.blackboard || {});
+        setCurrentConvId(evt.conversation_id || currentConvId);
+        if (evt.agents && evt.agents.length) setStreamActive(evt.agents[evt.agents.length - 1]);
       }
+    }
+
+    try {
+      await streamChat(payload, onEvent);
+      if (user) loadHistory();
     } catch (e) {
-      setMessages((prev) => [...prev, { role: "bot", text: "网络错误：无法连接后端服务。" }]);
+      // SSE 不可用/失败时降级为普通接口
+      try {
+        const resp = await sendChat(payload);
+        const data = await resp.json();
+        if (resp.ok && data.answer) {
+          setMessages((prev) => [...prev.slice(0, -1), { role: "bot", text: data.answer }]);
+          setTrace(data.trace || null);
+          setBlackboard(data.blackboard || {});
+          setCurrentConvId(data.conversation_id);
+          setStreamSteps(data.trace?.steps || []);
+          if (user) loadHistory();
+        } else {
+          setMessages((prev) => [...prev.slice(0, -1), { role: "bot", text: data.detail || "请求失败，请稍后重试。" }]);
+        }
+      } catch (e2) {
+        setMessages((prev) => [...prev.slice(0, -1), { role: "bot", text: "网络错误：无法连接后端服务。" }]);
+      }
     } finally {
       setTyping(false);
+      setStreaming(false);
+      setStreamActive(null);
+      if (finished) {
+        setTimeout(() => {
+          if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
+        }, 100);
+      }
     }
   }
 
@@ -167,6 +222,9 @@ export default function useChat(user) {
     input,
     setInput,
     typing,
+    streaming,
+    streamSteps,
+    streamActive,
     status,
     statusOnline,
     agentsMeta,

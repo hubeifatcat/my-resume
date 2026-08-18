@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from .agents import AGENT_META
@@ -404,6 +405,116 @@ async def chat(req: ChatRequest, user: dict | None = Depends(get_current_user_op
         agents=result.get("agents", []),
         trace=result.get("trace", {}),
         blackboard=result.get("blackboard", {}),
+    )
+
+
+@app.post("/api/chat/stream")
+async def chat_stream(req: ChatRequest, user: dict | None = Depends(get_current_user_optional)):
+    """SSE 流式对话：先推 Agent 执行步骤（stage），再逐块推回答（chunk），最后 done。"""
+    ok = await asyncio.to_thread(limiter.check, f"chat:{user.get('id') if user else 'anonymous'}", 20, 60)
+    if not ok:
+        raise HTTPException(status_code=429, detail="too many requests")
+    conv_id = req.conversation_id or uuid.uuid4().hex
+
+    async def event_stream():
+        # 1. 安全检测
+        if check_input(req.message):
+            answer = SAFETY_ANSWER
+            mode = "safety"
+            agents: list = []
+            trace: dict = {}
+            blackboard: dict = {}
+            _audit(user or {"id": None, "username": "anonymous"}, "chat_blocked", "chat", conv_id)
+            yield {"type": "stage", "stage": {"seq": 1, "agent": "safety", "action": "input_check", "input": req.message, "output": "blocked", "status": "blocked", "latency_ms": 0}}
+        else:
+            task_parsed = _parse_task_add(req.message)
+            if task_parsed is not None:
+                matched, task_title = task_parsed
+                if matched and not user:
+                    answer = "添加任务需要先登录账号。请登录后再对我说『添加任务：任务内容』，我会把它记入你的工作台。"
+                    mode = "task_login_required"
+                    agents, trace, blackboard = [], {}, {}
+                elif matched and not task_title:
+                    answer = "收到，你想添加什么任务？请说『添加任务：任务内容』，例如『添加任务：明天上午部署验收』。"
+                    mode = "task_ask_title"
+                    agents, trace, blackboard = [], {}, {}
+                elif matched:
+                    item = create_workbench_item(user["id"], "tasks", task_title, "", "todo")
+                    _audit(user, "task_add_via_chat", "workbench", str(item["id"]), {"title": task_title})
+                    answer = (
+                        f"✅ 已把任务「{task_title}」添加到你的工作台（待办状态）。\n"
+                        "可以到工作台的「任务」模块查看；对我说『开始处理』或到工作台点击「开始处理」推进进度。"
+                    )
+                    mode = "task_add"
+                    agents, trace, blackboard = [], {}, {}
+                    yield {"type": "stage", "stage": {"seq": 1, "agent": "task_agent", "action": "create_task", "input": req.message, "output": f"created #{item['id']}", "status": "ok", "latency_ms": 0}}
+                else:
+                    result = await _run_harness(req.message, req.skills, req.tools, conv_id)
+                    answer = result["answer"]
+                    mode = result["mode"]
+                    agents = result["agents"]
+                    trace = result["trace"]
+                    blackboard = result["blackboard"]
+            else:
+                # 多智能体链路：步骤通过回调逐步推送
+                steps_queue = []
+                async def on_step(step):
+                    steps_queue.append(step)
+
+                result = await harness.handle(req.message, req.skills, req.tools, conv_id, on_step=on_step)
+                for step in steps_queue:
+                    yield {"type": "stage", "stage": step}
+                answer = result["answer"]
+                mode = result["mode"]
+                agents = result["agents"]
+                trace = result["trace"]
+                blackboard = result["blackboard"]
+
+        # 2. 回答逐块推送（打字机效果）
+        chunk_size = 12
+        for i in range(0, len(answer), chunk_size):
+            yield {"type": "chunk", "text": answer[i : i + chunk_size]}
+            await asyncio.sleep(0.015)
+
+        # 3. 结束事件（含完整元数据）
+        yield {
+            "type": "done",
+            "conversation_id": conv_id,
+            "mode": mode,
+            "agents": agents,
+            "trace": trace,
+            "blackboard": blackboard,
+        }
+
+        # 4. 登录用户保存会话
+        if user:
+            existing = get_conversation(user["id"], conv_id)
+            messages = existing["messages"] if existing else []
+            messages.append({"role": "user", "text": req.message})
+            messages.append({"role": "bot", "text": answer})
+            title = (existing or {}).get("title") or req.message[:24]
+            save_conversation(user["id"], conv_id, title, messages, trace)
+
+        _audit(
+            user or {"id": None, "username": "anonymous"},
+            "chat",
+            "chat",
+            conv_id,
+            {"mode": mode},
+        )
+
+    async def sse():
+        async for event in event_stream():
+            yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        sse(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
     )
 
 

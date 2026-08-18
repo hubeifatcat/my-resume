@@ -13,15 +13,34 @@ export default function AgentPanel(props) {
     openConversation,
     removeConversation,
     selectedCount,
+    streamActive,
+    streamSteps,
+    typing,
   } = props;
+
+  // 当前链路用到的 agent 集合（从实时步骤推导）
+  const usedAgents = new Set((streamSteps || []).map((s) => s.agent));
+  const isRunning = !!typing;
+
+  function agentState(agentId) {
+    if (isRunning && streamActive === agentId) return "running";
+    if (usedAgents.has(agentId) && !(isRunning && streamActive === agentId)) return "done";
+    return "idle";
+  }
+
+  const routeNode = { id: "router", name: "意图路由", desc: "识别问题类型，选择 Agent 执行链路" };
 
   return (
     <aside className={"ma-demo-left" + (props.leftOpen ? " open" : "")}>
       <div className="ma-side-block">
         <h3>Agent 链路</h3>
+        <div className={"ma-agent-item" + (agentState("router") === "running" ? " running" : agentState("router") === "done" ? " done" : "")}>
+          <span className="ma-agent-dot"></span>
+          <div><strong>{routeNode.name}</strong><p>{routeNode.desc}</p></div>
+        </div>
         {agentsMeta.length === 0 && <p className="ma-muted">等待后端返回 Agent 列表…</p>}
         {agentsMeta.map((a) => (
-          <div className="ma-agent-item" key={a.id}>
+          <div className={"ma-agent-item" + (agentState(a.id) === "running" ? " running" : agentState(a.id) === "done" ? " done" : "")} key={a.id}>
             <span className="ma-agent-dot"></span>
             <div><strong>{a.name}</strong><p>{a.desc}</p></div>
           </div>

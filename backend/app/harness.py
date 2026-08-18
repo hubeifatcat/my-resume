@@ -10,7 +10,7 @@ from .trace import Trace, trace_store
 
 
 class RuntimeHarness:
-    async def handle(self, message, skills=None, tools=None, conversation_id=None):
+    async def handle(self, message, skills=None, tools=None, conversation_id=None, on_step=None):
         conv_id = conversation_id or uuid.uuid4().hex
         trace = Trace(conversation_id=conv_id)
         blackboard = Blackboard()
@@ -26,6 +26,8 @@ class RuntimeHarness:
             decision["intent"],
             latency_ms=latency,
         )
+        if on_step:
+            await on_step(trace.steps[-1])
 
         agents = []
         for agent_id in decision["chain"]:
@@ -36,6 +38,8 @@ class RuntimeHarness:
             result = await agent.run(message, blackboard, trace)
             trace.set_last_latency(int((time.time() - t0) * 1000))
             agents.append(agent.name)
+            if on_step:
+                await on_step(trace.steps[-1])
             _ = result
 
         final_answer = blackboard.get("final_answer") or "多智能体链路已执行，但没有生成回答。"

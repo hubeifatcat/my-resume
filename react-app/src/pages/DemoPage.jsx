@@ -43,10 +43,14 @@ export default function DemoPage() {
           removeConversation={chat.removeConversation}
           selectedCount={chat.selectedCount}
           leftOpen={chat.leftOpen}
+          streamActive={chat.streamActive}
+          streamSteps={chat.streamSteps}
+          typing={chat.typing}
         />
         <ChatPanel
           messages={chat.messages}
           typing={chat.typing}
+          streaming={chat.streaming}
           input={chat.input}
           setInput={chat.setInput}
           chatRef={chat.chatRef}
@@ -59,6 +63,7 @@ export default function DemoPage() {
           expandedStep={chat.expandedStep}
           setExpandedStep={chat.setExpandedStep}
           traceOpen={chat.traceOpen}
+          streamSteps={chat.streamSteps}
         />
       </div>
     </div>
