@@ -4,6 +4,7 @@ import {
   deleteConversation,
   getAgents,
   getConversation,
+  getQuota,
   getTools,
   listConversations,
   sendChat,
@@ -44,6 +45,7 @@ export default function useChat(user) {
   const [expandedStep, setExpandedStep] = useState(null);
   const [leftOpen, setLeftOpen] = useState(false);
   const [traceOpen, setTraceOpen] = useState(false);
+  const [quota, setQuota] = useState({ used: 0, limit: 0, remaining: 0, is_admin: false });
   const chatRef = useRef(null);
 
   useEffect(() => {
@@ -67,6 +69,10 @@ export default function useChat(user) {
         setSkills(tools.skills);
         setMcpTools(tools.mcpTools);
       } catch (e) { /* ignore */ }
+      try {
+        const q = await getQuota();
+        if (q) setQuota(q);
+      } catch (e) { /* ignore */ }
     }
     boot();
   }, []);
@@ -74,9 +80,11 @@ export default function useChat(user) {
   useEffect(() => {
     if (user) {
       loadHistory();
+      getQuota().then((q) => q && setQuota(q)).catch(() => {});
     } else {
       setHistory([]);
       setCurrentConvId(null);
+      getQuota().then((q) => q && setQuota(q)).catch(() => {});
     }
   }, [user]);
 
@@ -132,6 +140,11 @@ export default function useChat(user) {
   async function sendMessage(text) {
     const value = (text ?? input).trim();
     if (!value || typing) return;
+    // 配额检查：管理员不限；其余剩余次数 ≤ 0 时禁止发送
+    if (!quota.is_admin && quota.remaining <= 0) {
+      setMessages((prev) => [...prev, { role: "bot", text: quota.used >= (quota.limit || 0) ? "本次免费提问次数已用完，请登录后继续提问。" : "提问次数不足。" }]);
+      return;
+    }
     setInput("");
     setMessages((prev) => [...prev, { role: "user", text: value }]);
     setTyping(true);
@@ -174,6 +187,14 @@ export default function useChat(user) {
         setBlackboard(evt.blackboard || {});
         setCurrentConvId(evt.conversation_id || currentConvId);
         if (evt.agents && evt.agents.length) setStreamActive(evt.agents[evt.agents.length - 1]);
+        if (typeof evt.quota_remaining === "number") {
+          setQuota({
+            used: evt.quota_used ?? 0,
+            limit: evt.quota_limit ?? 0,
+            remaining: evt.quota_remaining,
+            is_admin: false,
+          });
+        }
       }
     }
 
@@ -191,9 +212,17 @@ export default function useChat(user) {
           setBlackboard(data.blackboard || {});
           setCurrentConvId(data.conversation_id);
           setStreamSteps(data.trace?.steps || []);
+          if (typeof data.quota_remaining === "number") {
+            setQuota({ used: data.quota_used ?? 0, limit: data.quota_limit ?? 0, remaining: data.quota_remaining, is_admin: false });
+          }
           if (user) loadHistory();
         } else {
-          setMessages((prev) => [...prev.slice(0, -1), { role: "bot", text: data.detail || "请求失败，请稍后重试。" }]);
+          if (resp.status === 403 && data.detail) {
+            setQuota((prev) => ({ ...prev, remaining: 0 }));
+            setMessages((prev) => [...prev.slice(0, -1), { role: "bot", text: data.detail }]);
+          } else {
+            setMessages((prev) => [...prev.slice(0, -1), { role: "bot", text: data.detail || "请求失败，请稍后重试。" }]);
+          }
         }
       } catch (e2) {
         setMessages((prev) => [...prev.slice(0, -1), { role: "bot", text: "网络错误：无法连接后端服务。" }]);
@@ -242,6 +271,7 @@ export default function useChat(user) {
     setLeftOpen,
     traceOpen,
     setTraceOpen,
+    quota,
     chatRef,
     loadHistory,
     openConversation,

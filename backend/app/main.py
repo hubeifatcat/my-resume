@@ -44,11 +44,15 @@ from .db import (
     get_announcement,
     get_any_conversation,
     get_conversation,
+    get_guest_chat_usage,
     get_refresh_token,
     get_user_by_id,
     get_user_by_username,
+    get_user_chat_usage,
     get_workbench_item,
     hard_delete_user,
+    increment_guest_chat_usage,
+    increment_user_chat_usage,
     init_db,
     list_all_conversations,
     list_announcements,
@@ -59,6 +63,7 @@ from .db import (
     lock_user,
     reset_login_failures,
     reset_user_password,
+    reset_user_chat_usage,
     revoke_refresh_token,
     revoke_user_refresh_tokens,
     save_conversation,
@@ -326,10 +331,14 @@ def conversation_delete(conversation_id: str, user: dict = Depends(get_current_u
 
 
 @app.post("/api/chat", response_model=ChatResponse)
-async def chat(req: ChatRequest, user: dict | None = Depends(get_current_user_optional)):
+async def chat(req: ChatRequest, request: Request, user: dict | None = Depends(get_current_user_optional)):
     ok = await asyncio.to_thread(limiter.check, f"chat:{user.get('id') if user else 'anonymous'}", 20, 60)
     if not ok:
         raise HTTPException(status_code=429, detail="too many requests")
+    ip = _client_ip(request)
+    quota = _quota_info(user, ip)
+    if _quota_exceeded(quota):
+        raise HTTPException(status_code=403, detail="提问次数已用完，请登录后继续（游客 2 次 / 注册用户 5 次）")
     conv_id = req.conversation_id or uuid.uuid4().hex
     if check_input(req.message):
         result = {
@@ -404,6 +413,11 @@ async def chat(req: ChatRequest, user: dict | None = Depends(get_current_user_op
         {"mode": result.get("mode", "")},
     )
 
+    # 安全拦截/登录引导类回复不消耗配额
+    if result.get("mode") not in ("safety", "task_login_required", "task_ask_title"):
+        _consume_quota(user, ip)
+        quota = _quota_info(user, ip)
+
     return ChatResponse(
         answer=result["answer"],
         conversation_id=conv_id,
@@ -411,15 +425,22 @@ async def chat(req: ChatRequest, user: dict | None = Depends(get_current_user_op
         agents=result.get("agents", []),
         trace=result.get("trace", {}),
         blackboard=result.get("blackboard", {}),
+        quota_remaining=quota["remaining"],
+        quota_limit=quota["quota"],
+        quota_used=quota["used"],
     )
 
 
 @app.post("/api/chat/stream")
-async def chat_stream(req: ChatRequest, user: dict | None = Depends(get_current_user_optional)):
+async def chat_stream(req: ChatRequest, request: Request, user: dict | None = Depends(get_current_user_optional)):
     """SSE 流式对话：先推 Agent 执行步骤（stage），再逐块推回答（chunk），最后 done。"""
     ok = await asyncio.to_thread(limiter.check, f"chat:{user.get('id') if user else 'anonymous'}", 20, 60)
     if not ok:
         raise HTTPException(status_code=429, detail="too many requests")
+    ip = _client_ip(request)
+    quota = _quota_info(user, ip)
+    if _quota_exceeded(quota):
+        raise HTTPException(status_code=403, detail="提问次数已用完，请登录后继续（游客 2 次 / 注册用户 5 次）")
     conv_id = req.conversation_id or uuid.uuid4().hex
 
     async def event_stream():
@@ -482,7 +503,10 @@ async def chat_stream(req: ChatRequest, user: dict | None = Depends(get_current_
             yield {"type": "chunk", "text": answer[i : i + chunk_size]}
             await asyncio.sleep(0.015)
 
-        # 3. 结束事件（含完整元数据）
+        # 3. 结束事件（含完整元数据 + 配额）
+        if mode not in ("safety", "task_login_required", "task_ask_title"):
+            _consume_quota(user, ip)
+            quota = _quota_info(user, ip)
         yield {
             "type": "done",
             "conversation_id": conv_id,
@@ -490,6 +514,9 @@ async def chat_stream(req: ChatRequest, user: dict | None = Depends(get_current_
             "agents": agents,
             "trace": trace,
             "blackboard": blackboard,
+            "quota_remaining": quota["remaining"],
+            "quota_limit": quota["quota"],
+            "quota_used": quota["used"],
         }
 
         # 4. 登录用户保存会话
@@ -527,6 +554,18 @@ async def chat_stream(req: ChatRequest, user: dict | None = Depends(get_current_
 @app.get("/api/announcements")
 def public_announcements():
     return {"announcements": list_announcements("published")}
+
+
+@app.get("/api/quota")
+def quota_info(request: Request, user: dict | None = Depends(get_current_user_optional)):
+    """查询当前会话（游客按 IP / 登录用户）的提问配额。"""
+    quota = _quota_info(user, _client_ip(request))
+    return {
+        "used": quota["used"],
+        "limit": quota["quota"],
+        "remaining": quota["remaining"],
+        "is_admin": bool(user and user.get("role") == "admin"),
+    }
 
 
 @app.get("/api/workbench")
@@ -593,6 +632,43 @@ def _audit(user: dict, action: str, target_type: str = "", target_id: str = "", 
         target_id,
         json.dumps(detail, ensure_ascii=False) if detail is not None else None,
     )
+
+
+# ---------- 提问配额 ----------
+GUEST_QUOTA = 2
+USER_QUOTA = 5
+
+
+def _client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for", "")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def _quota_info(user: dict | None, ip: str) -> dict:
+    """返回 {used, quota, remaining}；管理员不限制。"""
+    if user and user.get("role") == "admin":
+        return {"used": 0, "quota": -1, "remaining": -1}
+    if user:
+        usage = get_user_chat_usage(user["id"])
+        used = usage["used"]
+        quota = usage.get("quota") or USER_QUOTA
+        return {"used": used, "quota": quota, "remaining": max(0, quota - used)}
+    usage = get_guest_chat_usage(ip)
+    used = usage["used"]
+    return {"used": used, "quota": GUEST_QUOTA, "remaining": max(0, GUEST_QUOTA - used)}
+
+
+def _quota_exceeded(quota: dict) -> bool:
+    return quota["quota"] >= 0 and quota["remaining"] <= 0
+
+
+def _consume_quota(user: dict | None, ip: str) -> None:
+    if user:
+        increment_user_chat_usage(user["id"])
+    else:
+        increment_guest_chat_usage(ip)
 
 
 # 对话添加任务：识别「添加任务 / 新建任务 / 记个任务 / 加个待办」等表达
@@ -675,6 +751,14 @@ def admin_reset_password(user_id: int, body: dict, admin: dict = Depends(get_cur
     bump_token_version(user_id)
     revoke_user_refresh_tokens(user_id)
     _audit(admin, "reset_user_password", "users", str(user_id))
+    return {"ok": True, "user_id": user_id}
+
+
+@app.post("/api/admin/users/{user_id}/reset-chat-quota")
+def admin_reset_chat_quota(user_id: int, admin: dict = Depends(get_current_admin)):
+    if not reset_user_chat_usage(user_id):
+        raise HTTPException(status_code=404, detail="user not found")
+    _audit(admin, "reset_chat_quota", "users", str(user_id))
     return {"ok": True, "user_id": user_id}
 
 

@@ -56,6 +56,7 @@ export default function DemoPage() {
           chatRef={chat.chatRef}
           sendMessage={chat.sendMessage}
           handleKeydown={chat.handleKeydown}
+          quota={chat.quota}
         />
         <TracePanel
           trace={chat.trace}

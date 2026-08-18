@@ -2685,6 +2685,27 @@ footer .container {
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
+.ma-quota {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 76px;
+  width: min(760px, 92%);
+  text-align: center;
+  font-size: 0.76rem;
+  color: var(--ink-3);
+  background: rgba(37, 99, 235, 0.06);
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  border-radius: 999px;
+  padding: 4px 14px;
+}
+
+.ma-quota.exhausted {
+  color: var(--amber);
+  background: rgba(217, 119, 6, 0.08);
+  border-color: rgba(217, 119, 6, 0.25);
+}
+
 .ma-input-area:focus-within {
   border-color: rgba(37, 99, 235, 0.5);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.10), var(--shadow);
@@ -4022,6 +4043,23 @@ body {
   gap: 10px;
   padding: 12px 16px;
   border-top: 1px solid var(--line);
+}
+
+.wb-quota {
+  margin: 0 16px;
+  padding: 5px 14px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  text-align: center;
+  color: var(--ink-3);
+  background: rgba(37, 99, 235, 0.06);
+  border: 1px solid rgba(37, 99, 235, 0.18);
+}
+
+.wb-quota.exhausted {
+  color: var(--amber);
+  background: rgba(217, 119, 6, 0.08);
+  border-color: rgba(217, 119, 6, 0.25);
 }
 
 .wb-input-row textarea {

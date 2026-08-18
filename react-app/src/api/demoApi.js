@@ -32,6 +32,13 @@ export async function sendChat(payload) {
   });
 }
 
+/** 查询当前会话（游客按 IP / 登录用户）的提问配额 */
+export async function getQuota() {
+  const resp = await apiFetch("quota");
+  if (!resp.ok) return null;
+  return resp.json();
+}
+
 /** SSE 流式对话：onEvent 接收 {type: stage|chunk|done, ...} 事件 */
 export async function streamChat(payload, onEvent, signal) {
   const headers = { "Content-Type": "application/json" };

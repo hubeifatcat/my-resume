@@ -34,6 +34,9 @@ class ChatResponse(BaseModel):
     agents: list[str] = Field(default_factory=list)
     trace: dict = Field(default_factory=dict)
     blackboard: dict = Field(default_factory=dict)
+    quota_remaining: int = 0
+    quota_limit: int = 0
+    quota_used: int = 0
 
 
 class ConversationSummary(BaseModel):

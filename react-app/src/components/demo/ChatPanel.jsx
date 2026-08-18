@@ -1,7 +1,14 @@
 import { renderMessage } from "../../lib/text.jsx";
 
 export default function ChatPanel(props) {
-  const { messages, typing, streaming, input, setInput, chatRef, sendMessage, handleKeydown } = props;
+  const { messages, typing, streaming, input, setInput, chatRef, sendMessage, handleKeydown, quota } = props;
+
+  const quotaExhausted = !quota?.is_admin && (quota?.remaining ?? 0) <= 0 && (quota?.limit ?? 0) > 0;
+  const quotaLabel = quota?.is_admin
+    ? "管理员 · 不限次数"
+    : quota?.limit > 0
+      ? `剩余 ${quota.remaining} / ${quota.limit} 次`
+      : "";
 
   return (
     <main className="ma-demo-chat" ref={chatRef}>
@@ -34,15 +41,18 @@ export default function ChatPanel(props) {
         )}
       </div>
 
+      {quotaLabel && <div className={"ma-quota" + (quotaExhausted ? " exhausted" : "")}>{quotaExhausted ? "本次免费提问次数已用完，请登录后继续提问。" : quotaLabel}</div>}
+
       <div className="ma-input-area">
         <textarea
           rows="1"
-          placeholder="输入问题，例如：分析一下 Nacos 连接超时"
+          placeholder={quotaExhausted ? "提问次数已用完" : "输入问题，例如：分析一下 Nacos 连接超时"}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeydown}
+          disabled={quotaExhausted}
         />
-        <button className="ma-send" disabled={!input.trim() || typing} onClick={() => sendMessage()}>发送</button>
+        <button className="ma-send" disabled={!input.trim() || typing || quotaExhausted} onClick={() => sendMessage()}>发送</button>
       </div>
     </main>
   );

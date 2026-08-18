@@ -295,6 +295,12 @@ export default function WorkbenchPage() {
 
   // ---------- 渲染 ----------
   function renderChat() {
+    const quotaExhausted = !chat.quota?.is_admin && (chat.quota?.remaining ?? 0) <= 0 && (chat.quota?.limit ?? 0) > 0;
+    const quotaLabel = chat.quota?.is_admin
+      ? "管理员 · 不限次数"
+      : chat.quota?.limit > 0
+        ? `剩余 ${chat.quota.remaining} / ${chat.quota.limit} 次`
+        : "";
     return (
       <section className="wb-chat">
         <div className="wb-chat-head">
@@ -337,15 +343,17 @@ export default function WorkbenchPage() {
             </div>
           )}
         </div>
+        {quotaLabel && <div className={"wb-quota" + (quotaExhausted ? " exhausted" : "")}>{quotaExhausted ? "本次免费提问次数已用完，请登录后继续提问。" : quotaLabel}</div>}
         <div className="wb-input-row">
           <textarea
             rows="1"
-            placeholder="输入任务、问题或指令，例如：帮我拆解今天的工作"
+            placeholder={quotaExhausted ? "提问次数已用完" : "输入任务、问题或指令，例如：帮我拆解今天的工作"}
             value={chat.input}
             onChange={(e) => chat.setInput(e.target.value)}
             onKeyDown={chat.handleKeydown}
+            disabled={quotaExhausted}
           />
-          <button className="wb-send" disabled={!chat.input.trim() || chat.typing} onClick={() => chat.sendMessage()}>发送</button>
+          <button className="wb-send" disabled={!chat.input.trim() || chat.typing || quotaExhausted} onClick={() => chat.sendMessage()}>发送</button>
         </div>
       </section>
     );

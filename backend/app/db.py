@@ -117,6 +117,15 @@ def init_db():
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS guest_chat_usage (
+                ip TEXT PRIMARY KEY,
+                used INTEGER NOT NULL DEFAULT 0,
+                updated_at REAL NOT NULL
+            )
+            """
+        )
         cols = [row["name"] for row in conn.execute("PRAGMA table_info(users)")]
         if "role" not in cols:
             conn.execute("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'")
@@ -128,6 +137,10 @@ def init_db():
             conn.execute("ALTER TABLE users ADD COLUMN token_version INTEGER NOT NULL DEFAULT 0")
         if "deleted" not in cols:
             conn.execute("ALTER TABLE users ADD COLUMN deleted INTEGER NOT NULL DEFAULT 0")
+        if "chat_used" not in cols:
+            conn.execute("ALTER TABLE users ADD COLUMN chat_used INTEGER NOT NULL DEFAULT 0")
+        if "chat_quota" not in cols:
+            conn.execute("ALTER TABLE users ADD COLUMN chat_quota INTEGER NOT NULL DEFAULT 5")
         conn.commit()
         conn.close()
 
@@ -799,6 +812,72 @@ def delete_workbench_item(item_id: int, user_id: int) -> bool:
                 "DELETE FROM workbench_items WHERE id = ? AND user_id = ?",
                 (item_id, user_id),
             )
+            conn.commit()
+            return cur.rowcount > 0
+        finally:
+            conn.close()
+
+
+# ---------- 提问配额（Chat Quota） ----------
+
+def get_user_chat_usage(user_id: int) -> dict:
+    conn = _connect()
+    try:
+        row = conn.execute(
+            "SELECT chat_used, chat_quota FROM users WHERE id = ?",
+            (user_id,),
+        ).fetchone()
+        if not row:
+            return {"used": 0, "quota": 5}
+        return {"used": row["chat_used"], "quota": row["chat_quota"]}
+    finally:
+        conn.close()
+
+
+def increment_user_chat_usage(user_id: int) -> None:
+    with DB_LOCK:
+        conn = _connect()
+        try:
+            conn.execute(
+                "UPDATE users SET chat_used = chat_used + 1 WHERE id = ?",
+                (user_id,),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def get_guest_chat_usage(ip: str) -> dict:
+    conn = _connect()
+    try:
+        row = conn.execute(
+            "SELECT used FROM guest_chat_usage WHERE ip = ?",
+            (ip,),
+        ).fetchone()
+        return {"used": row["used"] if row else 0, "quota": 2}
+    finally:
+        conn.close()
+
+
+def increment_guest_chat_usage(ip: str) -> None:
+    with DB_LOCK:
+        conn = _connect()
+        try:
+            conn.execute(
+                "INSERT INTO guest_chat_usage (ip, used, updated_at) VALUES (?, 1, ?) "
+                "ON CONFLICT(ip) DO UPDATE SET used = used + 1, updated_at = excluded.updated_at",
+                (ip, time.time()),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def reset_user_chat_usage(user_id: int) -> bool:
+    with DB_LOCK:
+        conn = _connect()
+        try:
+            cur = conn.execute("UPDATE users SET chat_used = 0 WHERE id = ?", (user_id,))
             conn.commit()
             return cur.rowcount > 0
         finally:
