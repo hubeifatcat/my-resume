@@ -326,6 +326,7 @@ def delete_user(user_id: int) -> bool:
         conn = _connect()
         try:
             conn.execute("DELETE FROM conversations WHERE user_id = ?", (user_id,))
+            conn.execute("DELETE FROM workbench_items WHERE user_id = ?", (user_id,))
             cur = conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
             conn.commit()
             return cur.rowcount > 0
