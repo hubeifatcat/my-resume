@@ -3849,6 +3849,21 @@ body {
   font-weight: 700;
 }
 
+.wb-role-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wb-role-item > button {
+  flex: 1;
+  min-width: 0;
+}
+
+.wb-role-item .wb-item-actions {
+  margin-left: 0;
+}
+
 .wb-slider {
   display: block;
   margin-top: 12px;
@@ -3894,7 +3909,14 @@ body {
   border-bottom: 1px solid var(--line);
 }
 
-.wb-asset strong {
+.wb-asset-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.wb-asset-head strong {
   display: block;
   font-size: 0.82rem;
 }
@@ -3953,6 +3975,169 @@ body {
   margin-top: 3px;
   line-height: 1.5;
   white-space: pre-wrap;
+}
+
+/* ---------- Workbench 内容增删改 ---------- */
+.wb-module-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.wb-module-head h2 {
+  font-size: 1.2rem;
+}
+
+.wb-module-head > div > p {
+  color: var(--ink-3);
+  font-size: 0.86rem;
+  margin-top: 6px;
+}
+
+.wb-notice {
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  color: #9a3412;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.84rem;
+  margin-bottom: 14px;
+}
+
+.wb-add-btn {
+  border: 1px dashed var(--line-strong, #cbd5e1);
+  background: #f8fafc;
+  color: var(--ink-2, #475569);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 0.84rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.wb-add-btn:hover {
+  border-color: var(--blue, #2563eb);
+  color: var(--blue, #2563eb);
+  background: #eff6ff;
+}
+
+.wb-module-list .wb-add-btn {
+  width: 100%;
+  text-align: center;
+}
+
+.wb-mini-btn {
+  border: 1px solid var(--line, #e2e8f0);
+  background: #fff;
+  color: var(--ink-2, #475569);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.76rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.wb-mini-btn:hover {
+  border-color: var(--blue, #2563eb);
+  color: var(--blue, #2563eb);
+}
+
+.wb-mini-btn.primary {
+  background: var(--blue, #2563eb);
+  border-color: var(--blue, #2563eb);
+  color: #fff;
+}
+
+.wb-mini-btn.primary:hover {
+  opacity: 0.9;
+  color: #fff;
+}
+
+.wb-mini-btn.danger:hover {
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+.wb-item-actions {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+  flex-shrink: 0;
+  opacity: 0.6;
+  transition: opacity 0.15s ease;
+}
+
+.wb-module-item:hover .wb-item-actions {
+  opacity: 1;
+}
+
+.wb-task-status {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.wb-task-status.blue { background: rgba(37, 99, 235, 0.1); color: #2563eb; }
+.wb-task-status.amber { background: rgba(217, 119, 6, 0.12); color: #b45309; }
+.wb-task-status.green { background: rgba(5, 150, 105, 0.12); color: #059669; }
+
+.wb-edit-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.wb-edit-form input,
+.wb-edit-form select {
+  flex: 1 1 180px;
+  min-width: 0;
+  border: 1px solid var(--line, #e2e8f0);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.84rem;
+  background: #fff;
+  color: var(--ink-1, #0f172a);
+}
+
+.wb-edit-form select {
+  flex: 0 0 auto;
+}
+
+.wb-quick-add {
+  border-style: dashed !important;
+}
+
+.wb-quick-add:hover {
+  border-style: dashed !important;
+}
+
+.wb-side-edit {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.wb-edit-hint {
+  color: var(--ink-3, #94a3b8);
+  font-size: 0.72rem;
+}
+
+@media (max-width: 900px) {
+  .wb-item-actions {
+    opacity: 1;
+  }
 }
 
 @media (max-width: 1100px) {

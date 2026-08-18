@@ -1,12 +1,13 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { API_BASE_URL } from "../config.js";
 import useChat from "../hooks/useChat.js";
 import { useAuth } from "../hooks/useAuth.jsx";
+import { createWorkbenchItem, deleteWorkbenchItem, getWorkbench, updateWorkbenchItem } from "../api/workbenchApi.js";
 
 const navItems = [
   { id: "home", label: "首页" },
-  { id: "tasks", label: "任务", badge: 2 },
+  { id: "tasks", label: "任务" },
   { id: "schedule", label: "日程" },
   { id: "files", label: "文件" },
   { id: "logs", label: "日志" },
@@ -14,71 +15,85 @@ const navItems = [
   { id: "profile", label: "我的" },
 ];
 
-const stats = [
-  { label: "今日待办", value: "2", unit: "个", note: "待处理任务待完成", tone: "blue" },
-  { label: "进行中", value: "2", unit: "个", note: "正在推进的任务", tone: "cyan" },
-  { label: "今日会议", value: "3", unit: "场", note: "当天日程安排", tone: "amber" },
-  { label: "工作完成率", value: "33", unit: "%", note: "整体任务完成情况", tone: "green" },
-];
-
-const quickEntries = [
-  { label: "日程管理", desc: "查看今日安排与会议" },
-  { label: "我的任务", desc: "管理工作任务与进度" },
-  { label: "文件中心", desc: "管理办公文件资料" },
-  { label: "工作日志", desc: "记录每日工作情况" },
-  { label: "公司公告", desc: "查看企业最新通知" },
-  { label: "个人中心", desc: "管理个人信息资料" },
-];
-
-const weekTasks = [
-  { day: "周一", count: 4 },
-  { day: "周二", count: 6 },
-  { day: "周三", count: 3 },
-  { day: "周四", count: 5 },
-  { day: "周五", count: 2 },
-  { day: "周六", count: 1 },
-];
-
-const assets = [
-  { name: "项目知识库", meta: "RAG 检索 · 12 篇" },
-  { name: "运维案例", meta: "故障排查 · 36 条" },
-  { name: "文件资产", meta: "部署手册 · 8 份" },
-];
-
-const roles = ["项目经理助手", "运维分析助手", "文档写作助手", "脚本生成助手"];
-
-const moduleContent = {
-  tasks: {
-    title: "任务",
-    desc: "当前待办 2 个，进行中 2 个。可点击下方 AI 助手快速生成任务拆解与进度建议。",
-    items: ["梳理今日待办清单", "跟进项目交付验收", "生成周报草稿"],
-  },
-  schedule: {
-    title: "日程",
-    desc: "今日 3 场会议，可在 AI 对话中请求生成会议纪要与待办。",
-    items: ["10:00 项目周会", "14:00 需求评审", "16:30 交付复盘"],
-  },
-  files: {
-    title: "文件",
-    desc: "文件中心已接入知识库资产，AI 可基于文件内容回答与总结。",
-    items: ["部署方案.pdf", "用户操作手册.docx", "故障案例库.md"],
-  },
-  logs: {
-    title: "日志",
-    desc: "记录每日工作情况，支持 AI 总结与报告生成。",
-    items: ["今日完成部署验收", "处理客户反馈 3 条", "更新巡检记录"],
-  },
-  notice: {
-    title: "公告",
-    desc: "查看企业最新通知，AI 可提取公告要点。",
-    items: ["8 月安全演练安排", "新版本发布说明", "培训计划通知"],
-  },
-  profile: {
-    title: "我的",
-    desc: "个人资料与偏好设置。",
-    items: ["账号信息", "系统设置", "偏好与主题"],
-  },
+// 游客 / 未登录时的默认展示数据（与后端种子一致）
+const DEFAULT_MODULES = {
+  quick: [
+    { key: "q1", title: "日程管理", meta: "查看今日安排与会议" },
+    { key: "q2", title: "我的任务", meta: "管理工作任务与进度" },
+    { key: "q3", title: "文件中心", meta: "管理办公文件资料" },
+    { key: "q4", title: "工作日志", meta: "记录每日工作情况" },
+    { key: "q5", title: "公司公告", meta: "查看企业最新通知" },
+    { key: "q6", title: "个人中心", meta: "管理个人信息资料" },
+  ],
+  week: [
+    { key: "w1", day: "周一", count: 4 },
+    { key: "w2", day: "周二", count: 6 },
+    { key: "w3", day: "周三", count: 3 },
+    { key: "w4", day: "周四", count: 5 },
+    { key: "w5", day: "周五", count: 2 },
+    { key: "w6", day: "周六", count: 1 },
+  ],
+  roles: [
+    { key: "r1", title: "项目经理助手" },
+    { key: "r2", title: "运维分析助手" },
+    { key: "r3", title: "文档写作助手" },
+    { key: "r4", title: "脚本生成助手" },
+  ],
+  assets: [
+    { key: "a1", title: "项目知识库", meta: "RAG 检索 · 12 篇" },
+    { key: "a2", title: "运维案例", meta: "故障排查 · 36 条" },
+    { key: "a3", title: "文件资产", meta: "部署手册 · 8 份" },
+  ],
+  tasks: [
+    { key: "t1", title: "梳理今日待办清单", status: "todo" },
+    { key: "t2", title: "跟进项目交付验收", status: "doing" },
+    { key: "t3", title: "生成周报草稿", status: "done" },
+  ],
+  schedule: [
+    { key: "s1", title: "10:00 项目周会", meta: "会议室 A" },
+    { key: "s2", title: "14:00 需求评审", meta: "线上会议" },
+    { key: "s3", title: "16:30 交付复盘", meta: "会议室 B" },
+  ],
+  files: [
+    { key: "f1", title: "部署方案.pdf", meta: "PDF · 2.4MB" },
+    { key: "f2", title: "用户操作手册.docx", meta: "DOCX · 1.8MB" },
+    { key: "f3", title: "故障案例库.md", meta: "Markdown · 36 条" },
+  ],
+  logs: [
+    { key: "l1", title: "今日完成部署验收", meta: "08-13" },
+    { key: "l2", title: "处理客户反馈 3 条", meta: "08-13" },
+    { key: "l3", title: "更新巡检记录", meta: "08-12" },
+  ],
+  profile: [
+    { key: "p1", title: "账号信息", meta: "用户名 / 邮箱" },
+    { key: "p2", title: "系统设置", meta: "主题 / 通知" },
+    { key: "p3", title: "偏好与主题", meta: "亮色 / 暗色" },
+  ],
 };
+
+// 快捷入口点击 → 跳转模块映射（title 约定）
+const QUICK_TARGET = {
+  "日程管理": "schedule",
+  "我的任务": "tasks",
+  "文件中心": "files",
+  "工作日志": "logs",
+  "公司公告": "notice",
+  "个人中心": "profile",
+};
+
+const MODULE_TITLES = {
+  tasks: "任务",
+  schedule: "日程",
+  files: "文件",
+  logs: "日志",
+  notice: "公告",
+  profile: "我的",
+};
+
+const STATUS_LABEL = { todo: "待办", doing: "进行中", done: "已完成" };
+const STATUS_TONE = { todo: "blue", doing: "amber", done: "green" };
+
+const EMPTY_EDIT = { module: "", id: null, title: "", meta: "", status: "" };
 
 export default function WorkbenchPage() {
   const { user, setAuthOpen, logout } = useAuth();
@@ -88,12 +103,70 @@ export default function WorkbenchPage() {
   const [temperature, setTemperature] = useState(0.4);
   const [announcements, setAnnouncements] = useState([]);
 
+  // 工作台数据：登录用户从 API 加载，游客用默认数据
+  const [modules, setModules] = useState(DEFAULT_MODULES);
+  const [dataReady, setDataReady] = useState(false);
+  const [edit, setEdit] = useState(EMPTY_EDIT);
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState("");
+
+  const canEdit = !!user;
+
+  const loadWorkbench = useCallback(async () => {
+    if (!user) {
+      setModules(DEFAULT_MODULES);
+      setDataReady(true);
+      return;
+    }
+    try {
+      const data = await getWorkbench();
+      const grouped = data.modules || {};
+      setModules({
+        quick: grouped.quick || [],
+        week: (grouped.week || []).map((w) => ({ ...w, day: w.title, count: Number(w.meta) || 0 })),
+        roles: grouped.roles || [],
+        assets: grouped.assets || [],
+        tasks: grouped.tasks || [],
+        schedule: grouped.schedule || [],
+        files: grouped.files || [],
+        logs: grouped.logs || [],
+        profile: grouped.profile || [],
+      });
+    } catch (e) {
+      setNotice("工作台数据加载失败：" + (e.message || "网络错误"));
+    } finally {
+      setDataReady(true);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    loadWorkbench();
+  }, [loadWorkbench]);
+
   useEffect(() => {
     fetch(API_BASE_URL + "announcements")
       .then((resp) => resp.json())
       .then((data) => setAnnouncements(data.announcements || []))
       .catch(() => setAnnouncements([]));
   }, []);
+
+  // 统计卡：从任务/日程数据动态推导
+  const stats = useMemo(() => {
+    const tasks = modules.tasks || [];
+    const todo = tasks.filter((t) => t.status === "todo").length;
+    const doing = tasks.filter((t) => t.status === "doing").length;
+    const done = tasks.filter((t) => t.status === "done").length;
+    const total = tasks.length;
+    const rate = total ? Math.round((done / total) * 100) : 0;
+    return [
+      { label: "今日待办", value: String(todo), unit: "个", note: "待处理任务待完成", tone: "blue" },
+      { label: "进行中", value: String(doing), unit: "个", note: "正在推进的任务", tone: "cyan" },
+      { label: "今日会议", value: String((modules.schedule || []).length), unit: "场", note: "当天日程安排", tone: "amber" },
+      { label: "工作完成率", value: String(rate), unit: "%", note: "整体任务完成情况", tone: "green" },
+    ];
+  }, [modules]);
+
+  const weekTasks = useMemo(() => modules.week || [], [modules]);
 
   const today = new Date().toLocaleDateString("zh-CN", {
     year: "numeric",
@@ -106,6 +179,80 @@ export default function WorkbenchPage() {
     chat.sendMessage(prompt);
   }
 
+  // ---------- 增删改 ----------
+  function startCreate(module) {
+    setEdit({ module, id: null, title: "", meta: "", status: module === "tasks" ? "todo" : "" });
+  }
+
+  function startEdit(item, module) {
+    setEdit({ module, id: item.id, title: item.title || "", meta: item.meta || "", status: item.status || "" });
+  }
+
+  function cancelEdit() {
+    setEdit(EMPTY_EDIT);
+  }
+
+  async function saveItem(e) {
+    e.preventDefault();
+    if (!edit.title.trim() || !canEdit || busy) return;
+    setBusy(true);
+    try {
+      if (edit.id) {
+        await updateWorkbenchItem(edit.id, {
+          title: edit.title.trim(),
+          meta: edit.meta.trim(),
+          status: edit.status,
+        });
+      } else {
+        await createWorkbenchItem({
+          module: edit.module,
+          title: edit.title.trim(),
+          meta: edit.meta.trim(),
+          status: edit.status,
+        });
+      }
+      setEdit(EMPTY_EDIT);
+      await loadWorkbench();
+    } catch (err) {
+      window.alert(err.message || "保存失败");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removeItem(item) {
+    if (!canEdit || !item.id) return;
+    if (!window.confirm(`确认删除「${item.title}」？`)) return;
+    setBusy(true);
+    try {
+      await deleteWorkbenchItem(item.id);
+      await loadWorkbench();
+    } catch (err) {
+      window.alert(err.message || "删除失败");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function cycleTaskStatus(item) {
+    if (!canEdit || !item.id) return;
+    const next = item.status === "todo" ? "doing" : item.status === "doing" ? "done" : "todo";
+    setBusy(true);
+    try {
+      await updateWorkbenchItem(item.id, {
+        title: item.title,
+        meta: item.meta || "",
+        status: next,
+      });
+      await loadWorkbench();
+    } catch (err) {
+      window.alert(err.message || "更新失败");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // ---------- 渲染 ----------
   function renderChat() {
     return (
       <section className="wb-chat">
@@ -169,14 +316,21 @@ export default function WorkbenchPage() {
         <div className="wb-side-block">
           <h3>AI 角色</h3>
           <div className="wb-role-list">
-            {roles.map((role) => (
-              <button
-                key={role}
-                className={activeRole === role ? "active" : ""}
-                onClick={() => setActiveRole(role)}
-              >
-                {role}
-              </button>
+            {(modules.roles || []).map((role) => (
+              <div className="wb-role-item" key={role.id ?? role.key}>
+                <button
+                  className={activeRole === role.title ? "active" : ""}
+                  onClick={() => setActiveRole(role.title)}
+                >
+                  {role.title}
+                </button>
+                {canEdit && role.id && (
+                  <div className="wb-item-actions">
+                    <button className="wb-mini-btn" onClick={() => startEdit(role, "roles")}>编辑</button>
+                    <button className="wb-mini-btn danger" onClick={() => removeItem(role)}>删除</button>
+                  </div>
+                )}
+              </div>
             ))}
           </div>
           <label className="wb-slider">
@@ -190,6 +344,11 @@ export default function WorkbenchPage() {
               onChange={(e) => setTemperature(Number(e.target.value))}
             />
           </label>
+          {canEdit && (
+            <div className="wb-side-edit">
+              <button className="wb-mini-btn" onClick={() => startCreate("roles")}>+ 添加角色</button>
+            </div>
+          )}
         </div>
         <div className="wb-side-block">
           <h3>对话历史</h3>
@@ -206,14 +365,99 @@ export default function WorkbenchPage() {
         </div>
         <div className="wb-side-block">
           <h3>知识库 / 资产</h3>
-          {assets.map((asset) => (
-            <div className="wb-asset" key={asset.name}>
-              <strong>{asset.name}</strong>
+          {(modules.assets || []).map((asset) => (
+            <div className="wb-asset" key={asset.id ?? asset.key}>
+              <div className="wb-asset-head">
+                <strong>{asset.title}</strong>
+                {canEdit && asset.id && (
+                  <div className="wb-item-actions">
+                    <button className="wb-mini-btn" onClick={() => startEdit(asset, "assets")}>编辑</button>
+                    <button className="wb-mini-btn danger" onClick={() => removeItem(asset)}>删除</button>
+                  </div>
+                )}
+              </div>
               <span>{asset.meta}</span>
             </div>
           ))}
+          {canEdit && (
+            <div className="wb-side-edit">
+              <button className="wb-mini-btn" onClick={() => startCreate("assets")}>+ 添加资产</button>
+            </div>
+          )}
         </div>
       </aside>
+    );
+  }
+
+  // 通用模块条目渲染（可编辑）
+  function renderModuleItems(module, items) {
+    return (
+      <div className="wb-module-list">
+        {items.map((item) => (
+          <div className="wb-module-item" key={item.id ?? item.key}>
+            <span className="wb-quick-ico">{(item.title || "").slice(0, 1)}</span>
+            <div>
+              <strong>{item.title}</strong>
+              {item.meta && <span>{item.meta}</span>}
+              {module === "tasks" && item.status && (
+                <span className={"wb-task-status " + STATUS_TONE[item.status]}>
+                  {STATUS_LABEL[item.status]}
+                </span>
+              )}
+            </div>
+            {canEdit && (
+              <div className="wb-item-actions">
+                {module === "tasks" && item.id && (
+                  <button className="wb-mini-btn" onClick={() => cycleTaskStatus(item)}>推进</button>
+                )}
+                {item.id && (
+                  <>
+                    <button className="wb-mini-btn" onClick={() => startEdit(item, module)}>编辑</button>
+                    <button className="wb-mini-btn danger" onClick={() => removeItem(item)}>删除</button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+        {!items.length && <p className="wb-muted">暂无内容，点击下方按钮添加。</p>}
+        {canEdit && (
+          <button className="wb-add-btn" onClick={() => startCreate(module)}>+ 添加{MODULE_TITLES[module] || "内容"}</button>
+        )}
+      </div>
+    );
+  }
+
+  // 行内编辑表单
+  function renderEditForm() {
+    if (!edit.module) return null;
+    const isTask = edit.module === "tasks";
+    return (
+      <form className="wb-edit-form" onSubmit={saveItem}>
+        <input
+          autoFocus
+          value={edit.title}
+          onChange={(e) => setEdit((p) => ({ ...p, title: e.target.value }))}
+          placeholder={isTask ? "任务名称" : "标题"}
+          required
+        />
+        <input
+          value={edit.meta}
+          onChange={(e) => setEdit((p) => ({ ...p, meta: e.target.value }))}
+          placeholder={isTask ? "备注（可选）" : "描述 / 备注（可选）"}
+        />
+        {isTask && (
+          <select value={edit.status} onChange={(e) => setEdit((p) => ({ ...p, status: e.target.value }))}>
+            <option value="todo">待办</option>
+            <option value="doing">进行中</option>
+            <option value="done">已完成</option>
+          </select>
+        )}
+        <button className="wb-mini-btn primary" type="submit" disabled={busy || !edit.title.trim()}>
+          {busy ? "保存中…" : edit.id ? "保存" : "添加"}
+        </button>
+        <button className="wb-mini-btn" type="button" onClick={cancelEdit}>取消</button>
+      </form>
     );
   }
 
@@ -236,7 +480,6 @@ export default function WorkbenchPage() {
             >
               <span className="wb-nav-ico">{item.label.slice(0, 1)}</span>
               <span>{item.label}</span>
-              {item.badge ? <em>{item.badge}</em> : null}
             </button>
           ))}
         </nav>
@@ -276,6 +519,8 @@ export default function WorkbenchPage() {
           </div>
         </header>
 
+        {notice && <div className="wb-notice">{notice}</div>}
+
         {activeNav === "home" ? (
           <div className="wb-content">
             <div className="wb-stats">
@@ -292,22 +537,31 @@ export default function WorkbenchPage() {
             </div>
 
             <div className="wb-quick">
-              {quickEntries.map((q) => (
-                <button key={q.label} onClick={() => setActiveNav({ "日程管理": "schedule", "我的任务": "tasks", "文件中心": "files", "工作日志": "logs", "公司公告": "notice", "个人中心": "profile" }[q.label])}>
-                  <span className="wb-quick-ico">{q.label.slice(0, 1)}</span>
-                  <strong>{q.label}</strong>
-                  <span>{q.desc}</span>
+              {(modules.quick || []).map((q) => (
+                <button key={q.id ?? q.key} onClick={() => setActiveNav(QUICK_TARGET[q.title] || "home")}>
+                  <span className="wb-quick-ico">{(q.title || "").slice(0, 1)}</span>
+                  <strong>{q.title}</strong>
+                  <span>{q.meta}</span>
                 </button>
               ))}
+              {canEdit && (
+                <button className="wb-quick wb-quick-add" onClick={() => startCreate("quick")}>
+                  <span className="wb-quick-ico">+</span>
+                  <strong>添加入口</strong>
+                  <span>新增快捷入口</span>
+                </button>
+              )}
             </div>
+
+            {edit.module === "quick" && renderEditForm()}
 
             <div className="wb-charts">
               <div className="wb-chart-card">
                 <h3>本周完成任务</h3>
                 <div className="wb-bars">
                   {weekTasks.map((t) => (
-                    <div className="wb-bar" key={t.day}>
-                      <div style={{ height: `${t.count * 14}%` }}></div>
+                    <div className="wb-bar" key={t.id ?? t.key}>
+                      <div style={{ height: `${Math.min(100, (t.count || 0) * 14)}%` }}></div>
                       <span>{t.day}</span>
                       <em>{t.count}</em>
                     </div>
@@ -317,12 +571,12 @@ export default function WorkbenchPage() {
               <div className="wb-chart-card">
                 <h3>工作完成率</h3>
                 <div className="wb-progress">
-                  <div className="wb-ring" style={{ "--p": "33%" }}>
-                    <span>33%</span>
+                  <div className="wb-ring" style={{ "--p": `${stats[3].value}%` }}>
+                    <span>{stats[3].value}%</span>
                   </div>
                   <div>
-                    <strong>本周目标 12 项</strong>
-                    <span>已完成 4 项，剩余 8 项</span>
+                    <strong>共 {(modules.tasks || []).length} 项任务</strong>
+                    <span>已完成 {(modules.tasks || []).filter((t) => t.status === "done").length} 项</span>
                   </div>
                 </div>
               </div>
@@ -333,27 +587,70 @@ export default function WorkbenchPage() {
               {renderAiSide()}
             </div>
           </div>
-        ) : (
+        ) : activeNav === "settings" ? (
           <div className="wb-module">
-            <h2>{activeNav === "settings" ? "系统设置" : moduleContent[activeNav].title}</h2>
-            <p>{activeNav === "settings" ? "主题与偏好设置。" : moduleContent[activeNav].desc}</p>
+            <h2>系统设置</h2>
+            <p>主题与偏好设置。</p>
             <div className="wb-module-list">
-              {(activeNav === "settings"
-                ? ["主题：亮色 / 暗色", "通知偏好", "快捷键"]
-                : activeNav === "notice" && announcements.length
-                  ? announcements
-                  : moduleContent[activeNav].items
-              ).map((item) => (
-                <div className="wb-module-item" key={item.id ?? item}>
-                  <span className="wb-quick-ico">{(item.title || item).slice(0, 1)}</span>
+              {["主题：亮色 / 暗色", "通知偏好", "快捷键"].map((item) => (
+                <div className="wb-module-item" key={item}>
+                  <span className="wb-quick-ico">{item.slice(0, 1)}</span>
                   <div>
-                    <strong>{item.title || item}</strong>
-                    {item.content && <span>{item.content}</span>}
+                    <strong>{item}</strong>
                   </div>
                 </div>
               ))}
             </div>
             <p className="wb-muted">完整功能请返回首页工作台，使用 AI 助手快速处理。</p>
+          </div>
+        ) : (
+          <div className="wb-module">
+            <div className="wb-module-head">
+              <div>
+                <h2>{activeNav === "notice" ? "公告" : MODULE_TITLES[activeNav]}</h2>
+                <p>
+                  {activeNav === "notice"
+                    ? "查看企业最新通知，AI 可提取公告要点。"
+                    : activeNav === "tasks"
+                      ? "管理工作任务与进度，登录后点击「推进」切换状态，统计卡自动更新。"
+                      : activeNav === "schedule"
+                        ? "今日日程安排，登录后可增删改。"
+                        : activeNav === "files"
+                          ? "文件中心已接入知识库资产，登录后可增删改。"
+                          : activeNav === "logs"
+                            ? "记录每日工作情况，登录后可增删改。"
+                            : "个人资料与偏好设置，登录后可增删改。"}
+                </p>
+              </div>
+              {canEdit && activeNav !== "notice" && !edit.module && (
+                <button className="wb-add-btn" onClick={() => startCreate(activeNav)}>+ 添加</button>
+              )}
+            </div>
+            {edit.module === activeNav && renderEditForm()}
+            <div className="wb-module-list">
+              {activeNav === "notice" ? (
+                announcements.length ? (
+                  announcements.map((ann) => (
+                    <div className="wb-module-item" key={ann.id}>
+                      <span className="wb-quick-ico">{(ann.title || "").slice(0, 1)}</span>
+                      <div>
+                        <strong>{ann.title}</strong>
+                        {ann.content && <span>{ann.content}</span>}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="wb-muted">暂无公告。</p>
+                )
+              ) : (
+                renderModuleItems(activeNav, modules[activeNav] || [])
+              )}
+            </div>
+            <p className="wb-muted">
+              {canEdit
+                ? "内容已保存到你的账号，仅自己可见，可在本页直接增删改。"
+                : "登录后可管理工作台内容（任务 / 日程 / 文件 / 日志 / 快捷入口等）。"}
+            </p>
           </div>
         )}
       </main>

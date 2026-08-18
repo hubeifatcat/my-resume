@@ -24,6 +24,7 @@ from .auth import (
     verify_password,
 )
 from .db import (
+    WORKBENCH_MODULES,
     add_audit_log,
     bump_token_version,
     count_all_conversations,
@@ -32,10 +33,12 @@ from .db import (
     count_users,
     create_announcement,
     create_user,
+    create_workbench_item,
     delete_announcement,
     delete_any_conversation,
     delete_conversation,
     delete_user,
+    delete_workbench_item,
     ensure_admin,
     get_announcement,
     get_any_conversation,
@@ -43,12 +46,14 @@ from .db import (
     get_refresh_token,
     get_user_by_id,
     get_user_by_username,
+    get_workbench_item,
     init_db,
     list_all_conversations,
     list_announcements,
     list_audit_logs,
     list_conversations,
     list_users,
+    list_workbench,
     lock_user,
     reset_login_failures,
     reset_user_password,
@@ -56,9 +61,11 @@ from .db import (
     revoke_user_refresh_tokens,
     save_conversation,
     save_refresh_token,
+    seed_workbench,
     update_announcement,
     update_login_failure,
     update_user_role,
+    update_workbench_item,
 )
 from .harness import harness
 from .ingest import ingest_all
@@ -372,6 +379,61 @@ async def chat(req: ChatRequest, user: dict | None = Depends(get_current_user_op
 @app.get("/api/announcements")
 def public_announcements():
     return {"announcements": list_announcements("published")}
+
+
+@app.get("/api/workbench")
+def workbench(user: dict = Depends(get_current_user)):
+    items = list_workbench(user["id"])
+    if not items:
+        seed_workbench(user["id"])
+        items = list_workbench(user["id"])
+    grouped: dict[str, list] = {m: [] for m in WORKBENCH_MODULES}
+    for item in items:
+        grouped.setdefault(item["module"], []).append(item)
+    return {"modules": grouped}
+
+
+@app.post("/api/workbench")
+def workbench_create(body: dict, user: dict = Depends(get_current_user)):
+    module = (body.get("module") or "").strip()
+    title = (body.get("title") or "").strip()
+    if module not in WORKBENCH_MODULES:
+        raise HTTPException(status_code=400, detail="invalid module")
+    if not title:
+        raise HTTPException(status_code=400, detail="title is required")
+    meta = (body.get("meta") or "").strip()
+    status = (body.get("status") or "").strip()
+    sort_order = int(body.get("sort_order") or 0)
+    item = create_workbench_item(user["id"], module, title, meta, status, sort_order)
+    _audit(user, "workbench_create", "workbench", str(item["id"]), {"module": module, "title": title})
+    return item
+
+
+@app.patch("/api/workbench/{item_id}")
+def workbench_update(item_id: int, body: dict, user: dict = Depends(get_current_user)):
+    existing = get_workbench_item(item_id, user["id"])
+    if not existing:
+        raise HTTPException(status_code=404, detail="workbench item not found")
+    title = (body.get("title") or existing["title"]).strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="title is required")
+    meta = (body.get("meta") if body.get("meta") is not None else existing["meta"]).strip()
+    status = (body.get("status") if body.get("status") is not None else existing["status"]).strip()
+    sort_order = int(body.get("sort_order") if body.get("sort_order") is not None else existing["sort_order"])
+    if not update_workbench_item(item_id, user["id"], title, meta, status, sort_order):
+        raise HTTPException(status_code=404, detail="workbench item not found")
+    _audit(user, "workbench_update", "workbench", str(item_id), {"module": existing["module"], "title": title})
+    return get_workbench_item(item_id, user["id"])
+
+
+@app.delete("/api/workbench/{item_id}")
+def workbench_delete(item_id: int, user: dict = Depends(get_current_user)):
+    existing = get_workbench_item(item_id, user["id"])
+    if not existing:
+        raise HTTPException(status_code=404, detail="workbench item not found")
+    delete_workbench_item(item_id, user["id"])
+    _audit(user, "workbench_delete", "workbench", str(item_id), {"module": existing["module"]})
+    return {"deleted": True, "id": item_id}
 
 
 def _audit(user: dict, action: str, target_type: str = "", target_id: str = "", detail=None):

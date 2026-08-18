@@ -102,6 +102,21 @@ def init_db():
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS workbench_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                module TEXT NOT NULL,
+                title TEXT NOT NULL,
+                meta TEXT NOT NULL DEFAULT '',
+                status TEXT NOT NULL DEFAULT '',
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                created_at REAL NOT NULL,
+                updated_at REAL NOT NULL
+            )
+            """
+        )
         cols = [row["name"] for row in conn.execute("PRAGMA table_info(users)")]
         if "role" not in cols:
             conn.execute("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'")
@@ -605,5 +620,166 @@ def revoke_user_refresh_tokens(user_id: int) -> int:
             )
             conn.commit()
             return cur.rowcount
+        finally:
+            conn.close()
+
+
+# ---------- Workbench（工作台数据，按用户隔离） ----------
+
+WORKBENCH_MODULES = [
+    "stats_note", "quick", "week", "roles", "assets",
+    "tasks", "schedule", "files", "logs", "profile",
+]
+
+# 默认种子：与工作台初始展示一致，用户首次访问时自动写入
+DEFAULT_WORKBENCH = {
+    "quick": [
+        {"title": "日程管理", "meta": "查看今日安排与会议"},
+        {"title": "我的任务", "meta": "管理工作任务与进度"},
+        {"title": "文件中心", "meta": "管理办公文件资料"},
+        {"title": "工作日志", "meta": "记录每日工作情况"},
+        {"title": "公司公告", "meta": "查看企业最新通知"},
+        {"title": "个人中心", "meta": "管理个人信息资料"},
+    ],
+    "week": [
+        {"title": "周一", "meta": "4"},
+        {"title": "周二", "meta": "6"},
+        {"title": "周三", "meta": "3"},
+        {"title": "周四", "meta": "5"},
+        {"title": "周五", "meta": "2"},
+        {"title": "周六", "meta": "1"},
+    ],
+    "roles": [
+        {"title": "项目经理助手"},
+        {"title": "运维分析助手"},
+        {"title": "文档写作助手"},
+        {"title": "脚本生成助手"},
+    ],
+    "assets": [
+        {"title": "项目知识库", "meta": "RAG 检索 · 12 篇"},
+        {"title": "运维案例", "meta": "故障排查 · 36 条"},
+        {"title": "文件资产", "meta": "部署手册 · 8 份"},
+    ],
+    "tasks": [
+        {"title": "梳理今日待办清单", "meta": "", "status": "todo"},
+        {"title": "跟进项目交付验收", "meta": "", "status": "doing"},
+        {"title": "生成周报草稿", "meta": "", "status": "done"},
+    ],
+    "schedule": [
+        {"title": "10:00 项目周会", "meta": "会议室 A"},
+        {"title": "14:00 需求评审", "meta": "线上会议"},
+        {"title": "16:30 交付复盘", "meta": "会议室 B"},
+    ],
+    "files": [
+        {"title": "部署方案.pdf", "meta": "PDF · 2.4MB"},
+        {"title": "用户操作手册.docx", "meta": "DOCX · 1.8MB"},
+        {"title": "故障案例库.md", "meta": "Markdown · 36 条"},
+    ],
+    "logs": [
+        {"title": "今日完成部署验收", "meta": "08-13"},
+        {"title": "处理客户反馈 3 条", "meta": "08-13"},
+        {"title": "更新巡检记录", "meta": "08-12"},
+    ],
+    "profile": [
+        {"title": "账号信息", "meta": "用户名 / 邮箱"},
+        {"title": "系统设置", "meta": "主题 / 通知"},
+        {"title": "偏好与主题", "meta": "亮色 / 暗色"},
+    ],
+}
+
+
+def seed_workbench(user_id: int) -> None:
+    """首次访问时写入默认工作台数据。"""
+    with DB_LOCK:
+        conn = _connect()
+        try:
+            now = time.time()
+            for module, items in DEFAULT_WORKBENCH.items():
+                for order, item in enumerate(items):
+                    conn.execute(
+                        "INSERT INTO workbench_items (user_id, module, title, meta, status, sort_order, created_at, updated_at) "
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                        (
+                            user_id,
+                            module,
+                            item["title"],
+                            item.get("meta", ""),
+                            item.get("status", ""),
+                            order,
+                            now,
+                            now,
+                        ),
+                    )
+            conn.commit()
+        finally:
+            conn.close()
+
+
+def list_workbench(user_id: int) -> list:
+    conn = _connect()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM workbench_items WHERE user_id = ? ORDER BY sort_order, id",
+            (user_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def get_workbench_item(item_id: int, user_id: int):
+    conn = _connect()
+    try:
+        row = conn.execute(
+            "SELECT * FROM workbench_items WHERE id = ? AND user_id = ?",
+            (item_id, user_id),
+        ).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def create_workbench_item(user_id: int, module: str, title: str, meta: str = "", status: str = "", sort_order: int = 0) -> dict:
+    now = time.time()
+    with DB_LOCK:
+        conn = _connect()
+        try:
+            cur = conn.execute(
+                "INSERT INTO workbench_items (user_id, module, title, meta, status, sort_order, created_at, updated_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (user_id, module, title, meta, status, sort_order, now, now),
+            )
+            conn.commit()
+            item_id = cur.lastrowid
+        finally:
+            conn.close()
+    return get_workbench_item(item_id, user_id)
+
+
+def update_workbench_item(item_id: int, user_id: int, title: str, meta: str = "", status: str = "", sort_order: int = 0) -> bool:
+    with DB_LOCK:
+        conn = _connect()
+        try:
+            cur = conn.execute(
+                "UPDATE workbench_items SET title = ?, meta = ?, status = ?, sort_order = ?, updated_at = ? "
+                "WHERE id = ? AND user_id = ?",
+                (title, meta, status, sort_order, time.time(), item_id, user_id),
+            )
+            conn.commit()
+            return cur.rowcount > 0
+        finally:
+            conn.close()
+
+
+def delete_workbench_item(item_id: int, user_id: int) -> bool:
+    with DB_LOCK:
+        conn = _connect()
+        try:
+            cur = conn.execute(
+                "DELETE FROM workbench_items WHERE id = ? AND user_id = ?",
+                (item_id, user_id),
+            )
+            conn.commit()
+            return cur.rowcount > 0
         finally:
             conn.close()
