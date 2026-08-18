@@ -19,14 +19,19 @@ class KnowledgeAgent(BaseAgent):
                 hits = keyword_search(message, top_k)
         except Exception:
             hits = keyword_search(message, top_k)
-        context = "\n".join([f"- [来源：{h.get('source', '')}] {h.get('text', '')}" for h in hits])
+
+        # 相关性过滤：keyword 模式带 score，命中词数过少（≤1）视为弱相关，丢弃
+        min_score = int(os.getenv("RAG_MIN_SCORE", "2"))
+        filtered = [h for h in hits if h.get("score", min_score) >= min_score]
+
+        context = "\n".join([f"- [来源：{h.get('source', '')}] {h.get('text', '')}" for h in filtered])
         trace.add_step(
             self.name,
             "rag_search",
             message,
-            f"命中 {len(hits)} 条资料",
+            f"命中 {len(hits)} 条，过滤后保留 {len(filtered)} 条",
             latency_ms=0,
         )
-        blackboard.set("knowledge_hits", hits, self.name)
+        blackboard.set("knowledge_hits", filtered, self.name)
         blackboard.set("context", context, self.name)
         return context

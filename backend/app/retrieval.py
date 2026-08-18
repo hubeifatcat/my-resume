@@ -27,7 +27,7 @@ for _i, seed in enumerate(SEED_DOCUMENTS):
 
 
 def keyword_search(query: str, top_k: int = 5) -> list[dict]:
-    """简单 BM25 风格的关键词检索：按词重叠打分，返回最相关的文本块（含来源）。"""
+    """简单 BM25 风格的关键词检索：按词重叠打分，返回最相关的文本块（含来源与得分）。"""
     q_tokens = set(_tokenize(query))
     scored = []
     for item in CHUNKS:
@@ -36,4 +36,7 @@ def keyword_search(query: str, top_k: int = 5) -> list[dict]:
         if score > 0:
             scored.append((score, item))
     scored.sort(key=lambda x: -x[0])
-    return [item for _score, item in scored[:top_k]]
+    out = []
+    for score, item in scored[:top_k]:
+        out.append({"text": item["text"], "source": item["source"], "score": score})
+    return out

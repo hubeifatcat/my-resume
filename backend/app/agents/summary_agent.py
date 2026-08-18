@@ -18,16 +18,28 @@ class SummaryAgent(BaseAgent):
         if script:
             parts.append(f"生成脚本：\n{script}")
 
-        context = "\n\n".join(parts) if parts else "没有检索到相关资料。"
-        system = (
-            "你是多智能体系统中的汇总回答 Agent，请给出结构清晰、中文、不编造的回答。\n"
-            "规则：\n"
-            "1. 只有用户明确询问武渭星个人（工作经历、项目、技能、联系方式）时，才以个人资料为主回答。\n"
-            "2. 如果问题与技术、通用知识相关，即使检索结果里包含个人简历片段，也不要反复引用简历内容，优先使用与问题直接相关的资料。\n"
-            "3. 检索结果与问题无关时，直接忽略，不要硬套。\n"
-            "4. 检索不到相关资料时，可以结合自身知识给出通用回答，不要只说“找不到资料”。\n"
-            "5. 涉及武渭星本人信息时，必须依据资料，不编造。"
-        )
+        # 链路模式：personal=个人简历（强约束）；其他=通用/技术（DeepSeek 自由发挥）
+        mode = blackboard.get("mode") or trace.intent or "general"
+        if mode == "personal":
+            system = (
+                "你是武渭星个人网站的 AI 助手。\n"
+                "回答规则：\n"
+                "1. 用户询问的是武渭星本人（经历、项目、技能、联系方式等），必须严格依据下方资料回答，不得编造。\n"
+                "2. 资料未覆盖的内容，明确说明“资料中没有”，不要猜测。\n"
+                "3. 回答结构清晰、用中文。"
+            )
+            context = "\n\n".join(parts) if parts else "（未检索到资料，请如实说明资料中没有相关信息）"
+        else:
+            system = (
+                "你是武渭星个人网站的 AI 助手，也是他的研发/技术知识伙伴。\n"
+                "回答规则：\n"
+                "1. 技术/通用问题请结合你自己的知识给出专业、完整、结构清晰的回答（中文），不要依赖资料。\n"
+                "2. 如果下方提供了相关资料，且与问题直接相关，可作为补充引用；不相关就忽略。\n"
+                "3. 不要反复引用简历内容；除非用户明确询问武渭星个人。\n"
+                "4. 回答要具体、有干货，避免空话。"
+            )
+            context = "\n\n".join(parts) if parts else "（无资料，请基于自身知识回答）"
+
         final_answer = None
         try:
             final_answer = await chat_completion(system, f"用户问题：{message}\n\n{context}", max_tokens=1200)

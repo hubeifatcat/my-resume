@@ -19,6 +19,7 @@ class RuntimeHarness:
         decision = route(message)
         latency = int((time.time() - start) * 1000)
         trace.intent = decision["intent"]
+        blackboard.set("mode", decision["intent"], "router")
         trace.add_step(
             "router",
             "intent_route",
