@@ -2099,6 +2099,36 @@ footer .container {
   font-size: 0.9rem;
 }
 
+/* 首页在线体验 CTA */
+.p-cta {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 40px 36px;
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+  background-image:
+    radial-gradient(circle at 20% 0%, rgba(37, 99, 235, 0.06), transparent 40%),
+    radial-gradient(circle at 85% 100%, rgba(8, 145, 178, 0.06), transparent 40%);
+}
+
+.p-cta h3 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+
+.p-cta p {
+  color: var(--ink-2);
+  max-width: 640px;
+  margin: 0 auto 26px;
+  font-size: 0.95rem;
+}
+
+.p-cta .ma-actions {
+  justify-content: center;
+}
+
 .ma-arch {
   display: flex;
   flex-wrap: wrap;
